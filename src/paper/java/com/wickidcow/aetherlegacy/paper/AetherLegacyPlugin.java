@@ -1,5 +1,6 @@
 package com.wickidcow.aetherlegacy.paper;
 
+import com.wickidcow.aetherlegacy.paper.integration.BetterStructuresIntegration;
 import com.wickidcow.aetherlegacy.paper.portal.AetherPortalListener;
 import com.wickidcow.aetherlegacy.paper.world.AetherChunkGenerator;
 import net.kyori.adventure.text.Component;
@@ -21,6 +22,7 @@ public final class AetherLegacyPlugin extends JavaPlugin {
 
     private AetherChunkGenerator generator;
     private AetherPortalListener portalListener;
+    private BetterStructuresIntegration betterStructuresIntegration;
     private World aetherWorld;
 
     @Override
@@ -40,6 +42,9 @@ public final class AetherLegacyPlugin extends JavaPlugin {
         portalListener = new AetherPortalListener(this);
         getServer().getPluginManager().registerEvents(portalListener, this);
 
+        betterStructuresIntegration = new BetterStructuresIntegration(this);
+        betterStructuresIntegration.enable();
+
         PluginCommand command = Objects.requireNonNull(getCommand("aether"), "aether command missing from plugin.yml");
         command.setExecutor((sender, ignored, label, args) -> {
             if (!(sender instanceof Player player)) {
@@ -57,6 +62,7 @@ public final class AetherLegacyPlugin extends JavaPlugin {
                     .append(Component.text(getPluginMeta().getVersion(), NamedTextColor.YELLOW)));
                 player.sendMessage(Component.text("Realm: " + getRealmDisplayName(), NamedTextColor.LIGHT_PURPLE));
                 player.sendMessage(Component.text("World folder: " + aetherWorld.getName(), NamedTextColor.GRAY));
+                player.sendMessage(Component.text("BetterStructures: " + betterStructuresIntegration.status(), NamedTextColor.GRAY));
                 player.sendMessage(Component.text("Paper target: 26.2 / Java 25", NamedTextColor.GRAY));
                 return true;
             }
@@ -67,7 +73,7 @@ public final class AetherLegacyPlugin extends JavaPlugin {
                     return true;
                 }
                 reloadConfig();
-                player.sendMessage(Component.text("Aether Legacy configuration reloaded. World-name changes require a restart.", NamedTextColor.GREEN));
+                player.sendMessage(Component.text("Aether Legacy configuration reloaded. World-name and integration-mode changes require a restart.", NamedTextColor.GREEN));
                 return true;
             }
 
@@ -77,7 +83,7 @@ public final class AetherLegacyPlugin extends JavaPlugin {
         });
 
         getLogger().info("Aether Legacy for Paper " + getPluginMeta().getVersion() + " enabled on " + Bukkit.getMinecraftVersion());
-        getLogger().info(getRealmDisplayName() + " active: custom floating islands, Glowstone-water portals, and /aether travel.");
+        getLogger().info(getRealmDisplayName() + " active: custom floating islands, Fae structures, Glowstone-water portals, and /aether travel.");
     }
 
     private World loadAetherWorld() {
