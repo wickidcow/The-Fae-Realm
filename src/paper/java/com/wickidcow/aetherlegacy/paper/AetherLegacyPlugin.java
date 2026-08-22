@@ -1,8 +1,10 @@
 package com.wickidcow.aetherlegacy.paper;
 
 import com.wickidcow.aetherlegacy.paper.integration.BetterStructuresIntegration;
+import com.wickidcow.aetherlegacy.paper.item.FaeItems;
 import com.wickidcow.aetherlegacy.paper.loot.FaeDungeonLootListener;
 import com.wickidcow.aetherlegacy.paper.portal.AetherPortalListener;
+import com.wickidcow.aetherlegacy.paper.progression.FaeProgressionListener;
 import com.wickidcow.aetherlegacy.paper.world.AetherChunkGenerator;
 import com.wickidcow.aetherlegacy.paper.world.FaeGeneratorSettings;
 import com.wickidcow.aetherlegacy.paper.world.FaeVoidListener;
@@ -55,10 +57,12 @@ public final class AetherLegacyPlugin extends JavaPlugin {
         prepareArrivalArea(aetherWorld);
         FaeWorldMetadata.record(this, aetherWorld, generatorSettings);
 
+        FaeItems faeItems = new FaeItems(this);
         portalListener = new AetherPortalListener(this);
         getServer().getPluginManager().registerEvents(portalListener, this);
         getServer().getPluginManager().registerEvents(new FaeVoidListener(this), this);
         getServer().getPluginManager().registerEvents(new FaeDungeonLootListener(this), this);
+        getServer().getPluginManager().registerEvents(new FaeProgressionListener(this, faeItems), this);
 
         betterStructuresIntegration = new BetterStructuresIntegration(this);
         betterStructuresIntegration.enable();
@@ -127,7 +131,7 @@ public final class AetherLegacyPlugin extends JavaPlugin {
         getLogger().info(getRealmDisplayName() + " active: generator v"
             + getConfig().getInt("worldgen.version", 5) + " / "
             + generatorSettings.preset().name().toLowerCase()
-            + ", floating continents, regional biomes, resources, Fae structures, vaults, portals, and /fae travel.");
+            + ", floating continents, regional biomes, resources, Fae structures, vaults, progression, portals, and /fae travel.");
     }
 
     private World loadAetherWorld() {
