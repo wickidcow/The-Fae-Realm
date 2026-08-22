@@ -14,6 +14,8 @@ import java.util.Random;
  */
 public final class FaeRealmPopulator extends BlockPopulator {
 
+    private static final FaeStructurePopulator STRUCTURES = new FaeStructurePopulator();
+
     @Override
     public void populate(@NotNull WorldInfo worldInfo,
                          @NotNull Random random,
@@ -50,6 +52,8 @@ public final class FaeRealmPopulator extends BlockPopulator {
         if (random.nextInt(96) == 0) {
             placeFaeRuin(worldInfo, region, random, baseX, baseZ);
         }
+
+        STRUCTURES.populate(worldInfo, random, chunkX, chunkZ, region);
     }
 
     private double treeChance(FaeRealmBiome biome) {
