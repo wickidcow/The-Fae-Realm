@@ -1,11 +1,15 @@
 package com.wickidcow.aetherlegacy.paper;
 
 import com.wickidcow.aetherlegacy.paper.integration.BetterStructuresIntegration;
+import com.wickidcow.aetherlegacy.paper.loot.FaeDungeonLootListener;
 import com.wickidcow.aetherlegacy.paper.portal.AetherPortalListener;
 import com.wickidcow.aetherlegacy.paper.world.AetherChunkGenerator;
+import com.wickidcow.aetherlegacy.paper.world.FaeGeneratorSettings;
+import com.wickidcow.aetherlegacy.paper.world.FaeVoidListener;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
+import org.bukkit.GameRule;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -18,6 +22,13 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Objects;
 
+/**
+ * Paper entry point for The Fae Realm.
+ *
+ * <p>The legacy package/class name is retained temporarily so existing development
+ * branches and plugin data remain compatible while the public project identity is
+ * The Fae Realm.</p>
+ */
 public final class AetherLegacyPlugin extends JavaPlugin {
 
     private AetherChunkGenerator generator;
@@ -28,7 +39,7 @@ public final class AetherLegacyPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         saveDefaultConfig();
-        generator = new AetherChunkGenerator();
+        generator = new AetherChunkGenerator(FaeGeneratorSettings.from(getConfig()));
         aetherWorld = loadAetherWorld();
 
         if (aetherWorld == null) {
@@ -37,15 +48,18 @@ public final class AetherLegacyPlugin extends JavaPlugin {
             return;
         }
 
+        configureRealm(aetherWorld);
         prepareArrivalArea(aetherWorld);
 
         portalListener = new AetherPortalListener(this);
         getServer().getPluginManager().registerEvents(portalListener, this);
+        getServer().getPluginManager().registerEvents(new FaeVoidListener(this), this);
+        getServer().getPluginManager().registerEvents(new FaeDungeonLootListener(this), this);
 
         betterStructuresIntegration = new BetterStructuresIntegration(this);
         betterStructuresIntegration.enable();
 
-        PluginCommand command = Objects.requireNonNull(getCommand("aether"), "aether command missing from plugin.yml");
+        PluginCommand command = Objects.requireNonNull(getCommand("fae"), "fae command missing from plugin.yml");
         command.setExecutor((sender, ignored, label, args) -> {
             if (!(sender instanceof Player player)) {
                 sender.sendMessage("This command must be run by a player.");
@@ -58,22 +72,24 @@ public final class AetherLegacyPlugin extends JavaPlugin {
             }
 
             if (args.length > 0 && args[0].equalsIgnoreCase("info")) {
-                player.sendMessage(Component.text("Aether Legacy for Paper ", NamedTextColor.GOLD)
-                    .append(Component.text(getPluginMeta().getVersion(), NamedTextColor.YELLOW)));
+                player.sendMessage(Component.text("The Fae Realm ", NamedTextColor.LIGHT_PURPLE)
+                    .append(Component.text(getPluginMeta().getVersion(), NamedTextColor.AQUA)));
                 player.sendMessage(Component.text("Realm: " + getRealmDisplayName(), NamedTextColor.LIGHT_PURPLE));
                 player.sendMessage(Component.text("World folder: " + aetherWorld.getName(), NamedTextColor.GRAY));
+                player.sendMessage(Component.text("Generator: v" + getConfig().getInt("worldgen.version", 4), NamedTextColor.GRAY));
                 player.sendMessage(Component.text("BetterStructures: " + betterStructuresIntegration.status(), NamedTextColor.GRAY));
                 player.sendMessage(Component.text("Paper target: 26.2 / Java 25", NamedTextColor.GRAY));
                 return true;
             }
 
             if (args.length > 0 && args[0].equalsIgnoreCase("reload")) {
-                if (!player.hasPermission("aetherlegacy.admin")) {
-                    player.sendMessage(Component.text("You do not have permission to reload Aether Legacy.", NamedTextColor.RED));
+                if (!player.hasPermission("faerealm.admin") && !player.hasPermission("aetherlegacy.admin")) {
+                    player.sendMessage(Component.text("You do not have permission to reload The Fae Realm.", NamedTextColor.RED));
                     return true;
                 }
                 reloadConfig();
-                player.sendMessage(Component.text("Aether Legacy configuration reloaded. World-name and integration-mode changes require a restart.", NamedTextColor.GREEN));
+                configureRealm(aetherWorld);
+                player.sendMessage(Component.text("Fae Realm configuration reloaded. Generator, world-name, and integration-mode changes require a restart.", NamedTextColor.GREEN));
                 return true;
             }
 
@@ -82,8 +98,8 @@ public final class AetherLegacyPlugin extends JavaPlugin {
             return true;
         });
 
-        getLogger().info("Aether Legacy for Paper " + getPluginMeta().getVersion() + " enabled on " + Bukkit.getMinecraftVersion());
-        getLogger().info(getRealmDisplayName() + " active: custom floating islands, Fae structures, Glowstone-water portals, and /aether travel.");
+        getLogger().info("The Fae Realm " + getPluginMeta().getVersion() + " enabled on Minecraft " + Bukkit.getMinecraftVersion());
+        getLogger().info(getRealmDisplayName() + " active: floating continents, regional biomes, resources, Fae structures, vaults, portals, and /fae travel.");
     }
 
     private World loadAetherWorld() {
@@ -106,6 +122,16 @@ public final class AetherLegacyPlugin extends JavaPlugin {
         return creator.createWorld();
     }
 
+    private void configureRealm(World world) {
+        world.setPVP(getConfig().getBoolean("world.pvp", true));
+        world.setGameRule(GameRule.DO_DAYLIGHT_CYCLE,
+            getConfig().getBoolean("world.daylight-cycle", true));
+        world.setGameRule(GameRule.DO_WEATHER_CYCLE,
+            getConfig().getBoolean("world.weather-cycle", true));
+        world.setGameRule(GameRule.DO_MOB_SPAWNING,
+            getConfig().getBoolean("world.mob-spawning", true));
+    }
+
     private void prepareArrivalArea(World world) {
         int y = getConfig().getInt("world.spawn-y", 136);
         world.getChunkAt(0, 0).load();
@@ -119,7 +145,7 @@ public final class AetherLegacyPlugin extends JavaPlugin {
             }
         }
 
-        // Classic Aether-style 4x5 Glowstone frame. The interior remains water.
+        // Classic fantasy-sky portal: a 4x5 Glowstone frame with a water interior.
         for (int x = -1; x <= 2; x++) {
             for (int py = y; py <= y + 4; py++) {
                 boolean border = x == -1 || x == 2 || py == y || py == y + 4;
