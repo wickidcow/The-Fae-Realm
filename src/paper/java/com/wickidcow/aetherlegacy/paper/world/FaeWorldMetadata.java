@@ -29,7 +29,7 @@ public final class FaeWorldMetadata {
     public static void record(JavaPlugin plugin, World world, FaeGeneratorSettings settings) {
         File file = new File(world.getWorldFolder(), FILE_NAME);
         YamlConfiguration metadata = YamlConfiguration.loadConfiguration(file);
-        int currentVersion = plugin.getConfig().getInt("worldgen.version", 6);
+        int currentVersion = FaeGeneratorVersion.CURRENT;
         int previousVersion = metadata.getInt("current-generator-version", -1);
 
         if (previousVersion > 0 && previousVersion != currentVersion) {
