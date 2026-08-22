@@ -104,8 +104,9 @@ public final class AetherLegacyPlugin extends JavaPlugin {
                     player.sendMessage(Component.text("Enter the Fae Realm to inspect its region.", NamedTextColor.YELLOW));
                     return true;
                 }
+                Location location = player.getLocation();
                 var biome = AetherChunkGenerator.biomeAt(
-                    aetherWorld.getSeed(), player.getBlockX(), player.getBlockZ());
+                    aetherWorld.getSeed(), location.getBlockX(), location.getBlockZ());
                 player.sendMessage(Component.text(
                     "Fae region: " + prettyName(biome.name()), NamedTextColor.AQUA));
                 return true;
