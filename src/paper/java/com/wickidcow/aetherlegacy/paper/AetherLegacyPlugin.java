@@ -12,7 +12,7 @@ import com.wickidcow.aetherlegacy.paper.world.FaeWorldMetadata;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
-import org.bukkit.GameRule;
+import org.bukkit.GameRules;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -75,7 +75,7 @@ public final class AetherLegacyPlugin extends JavaPlugin {
             }
 
             if (args.length > 0 && args[0].equalsIgnoreCase("return")) {
-                player.teleport(getDefaultReturnLocation());
+                player.teleport(portalListener.getReturnLocation(player));
                 return true;
             }
 
@@ -157,11 +157,11 @@ public final class AetherLegacyPlugin extends JavaPlugin {
 
     private void configureRealm(World world) {
         world.setPVP(getConfig().getBoolean("world.pvp", true));
-        world.setGameRule(GameRule.DO_DAYLIGHT_CYCLE,
+        world.setGameRule(GameRules.ADVANCE_TIME,
             getConfig().getBoolean("world.daylight-cycle", true));
-        world.setGameRule(GameRule.DO_WEATHER_CYCLE,
+        world.setGameRule(GameRules.ADVANCE_WEATHER,
             getConfig().getBoolean("world.weather-cycle", true));
-        world.setGameRule(GameRule.DO_MOB_SPAWNING,
+        world.setGameRule(GameRules.SPAWN_MOBS,
             getConfig().getBoolean("world.mob-spawning", true));
     }
 
