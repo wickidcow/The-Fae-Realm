@@ -106,8 +106,20 @@ assert_realm_files() {
         return 1
     fi
 
-    if ! grep -Fq 'current-generator-version: 5' "$REALM_METADATA"; then
-        echo "Paper runtime smoke ${label}: generator metadata does not report v5." >&2
+    if ! grep -Fq 'current-generator-version: 6' "$REALM_METADATA"; then
+        echo "Paper runtime smoke ${label}: generator metadata does not report v6." >&2
+        cat "$REALM_METADATA" >&2 || true
+        return 1
+    fi
+
+    if ! grep -Fq 'terrain-profiles: true' "$REALM_METADATA"; then
+        echo "Paper runtime smoke ${label}: v6 terrain-profile metadata was not persisted." >&2
+        cat "$REALM_METADATA" >&2 || true
+        return 1
+    fi
+
+    if ! grep -Fq 'structure-spacing-chunks: 10' "$REALM_METADATA"; then
+        echo "Paper runtime smoke ${label}: v6 structure-spacing metadata was not persisted." >&2
         cat "$REALM_METADATA" >&2 || true
         return 1
     fi
@@ -205,9 +217,22 @@ run_cycle() {
 run_cycle "first"
 FIRST_METADATA_HASH="$(sha256sum "$REALM_METADATA" | awk '{print $1}')"
 FIRST_REALM_PATH="${REALM_METADATA#"$WORK_DIR"/}"
+
+if ! grep -Fq 'Initialized the Fae Realm arrival island and return portal.' "$WORK_DIR/first.console.log"; then
+    echo "First boot did not report initial arrival-area setup." >&2
+    cat "$WORK_DIR/first.console.log" >&2 || true
+    exit 1
+fi
+
 run_cycle "second"
 SECOND_METADATA_HASH="$(sha256sum "$REALM_METADATA" | awk '{print $1}')"
 SECOND_REALM_PATH="${REALM_METADATA#"$WORK_DIR"/}"
+
+if ! grep -Fq 'Existing Fae Realm detected; preserving player changes around realm spawn.' "$WORK_DIR/second.console.log"; then
+    echo "Second boot did not preserve the initialized arrival area." >&2
+    cat "$WORK_DIR/second.console.log" >&2 || true
+    exit 1
+fi
 
 if [[ -z "$FIRST_METADATA_HASH" || -z "$SECOND_METADATA_HASH" ]]; then
     echo "Could not hash persisted generator metadata." >&2
@@ -228,7 +253,9 @@ Cycles: 2
 Fae Realm dimension created: yes
 Fae Realm storage: ${SECOND_REALM_PATH}
 Generator metadata present: yes
-Generator version: 5
+Generator version: 6
+Terrain profiles persisted: yes
 Second boot loaded persisted realm: yes
+Arrival area preserved on second boot: yes
 EOF
 cat "$WORK_DIR/smoke-result.txt"
