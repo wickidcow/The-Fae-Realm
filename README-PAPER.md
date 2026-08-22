@@ -1,6 +1,6 @@
 # The Fae Realm
 
-**The Fae Realm** is an experimental server-side fantasy world generator for **Paper 26.2 / Java 25**. It creates a separate floating-island realm entirely from a seed as players explore; it is not a pre-generated map download and does not require Forge, Fabric, or NeoForge on the client.
+**The Fae Realm** is a server-side fantasy world generator for **Paper 26.2 / Java 25**. It creates a separate floating-island realm entirely from a seed as players explore; it is not a pre-generated map download and does not require Forge, Fabric, or NeoForge on the client.
 
 The project began as a Paper-port experiment from a fork of The Aether. The active Paper implementation now has its own Fae Realm identity, generator, structures, resources, dungeons, and gameplay systems. The original NeoForge branch remains only as historical/reference source. No original Aether all-rights-reserved assets are bundled in the Paper plugin.
 
@@ -57,7 +57,7 @@ Structure candidates are deterministic, terrain-tested, and placed through Paper
 
 ## Fae Vault dungeons
 
-Rare Dungeon Gates now descend into chunk-local **Fae Vaults**. The first dungeon framework includes:
+Rare Dungeon Gates descend into chunk-local **Fae Vaults**. The first dungeon framework includes:
 
 - Descending gate passage
 - Main hall
@@ -121,4 +121,4 @@ Generator/world-name changes require a restart and only affect newly generated c
 
 ## Development status
 
-The current branch is still pre-release, but it now contains a usable generator foundation: terrain, five regional identities, vegetation, resources, structures, dungeon vaults, portal travel, configurable void behavior, and BetterStructures coexistence. The next major milestones are richer terrain profiles, expanded dungeon progression, custom mob ecology, structure packs, generator diagnostics, and runtime/performance smoke testing.
+The current branch is pre-release, but it now contains a usable generator foundation: terrain, five regional identities, vegetation, resources, structures, dungeon vaults, portal travel, configurable void behavior, and BetterStructures coexistence. The next major milestones are richer terrain profiles, expanded dungeon progression, custom mob ecology, structure packs, generator diagnostics, and runtime/performance smoke testing.
