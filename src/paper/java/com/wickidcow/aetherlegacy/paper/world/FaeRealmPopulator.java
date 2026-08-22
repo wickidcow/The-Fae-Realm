@@ -38,14 +38,14 @@ public final class FaeRealmPopulator extends BlockPopulator {
         int baseX = chunkX << 4;
         int baseZ = chunkZ << 4;
 
-        if (settings.resources()) {
-            RESOURCES.populate(worldInfo, chunkX, chunkZ, region);
+        if (settings.resources() && settings.resourceDensity() > 0.0) {
+            RESOURCES.populate(worldInfo, chunkX, chunkZ, region, settings.resourceDensity());
         }
 
-        if (settings.decorations()) {
+        if (settings.decorations() && settings.decorationDensity() > 0.0) {
             UNDERSIDE.populate(worldInfo, chunkX, chunkZ, region, settings);
 
-            int treeAttempts = 1 + random.nextInt(3);
+            int treeAttempts = scaledAttempts(1 + random.nextInt(3), settings.decorationDensity(), random);
             for (int i = 0; i < treeAttempts; i++) {
                 int x = baseX + random.nextInt(16);
                 int z = baseZ + random.nextInt(16);
@@ -65,20 +65,37 @@ public final class FaeRealmPopulator extends BlockPopulator {
                 }
             }
 
-            if (random.nextInt(9) == 0) {
+            if (random.nextDouble() < scaledChance(1.0 / 9.0, settings.decorationDensity())) {
                 placeCrystalOutcrop(worldInfo, region, random, baseX, baseZ);
             }
 
-            if (random.nextInt(96) == 0) {
+            if (random.nextDouble() < scaledChance(1.0 / 96.0, settings.decorationDensity())) {
                 placeFaeRuin(worldInfo, region, random, baseX, baseZ);
             }
 
-            FEATURES.populate(worldInfo, random, chunkX, chunkZ, region);
+            FEATURES.populate(
+                worldInfo,
+                random,
+                chunkX,
+                chunkZ,
+                region,
+                settings.decorationDensity());
         }
 
         if (settings.structures()) {
-            STRUCTURES.populate(worldInfo, random, chunkX, chunkZ, region);
+            STRUCTURES.populate(worldInfo, random, chunkX, chunkZ, region, settings);
         }
+    }
+
+    private int scaledAttempts(int baseAttempts, double density, Random random) {
+        double expected = Math.max(0.0, baseAttempts * density);
+        int whole = (int) Math.floor(expected);
+        double remainder = expected - whole;
+        return whole + (random.nextDouble() < remainder ? 1 : 0);
+    }
+
+    private double scaledChance(double baseChance, double density) {
+        return Math.min(1.0, Math.max(0.0, baseChance * density));
     }
 
     private double treeChance(FaeRealmBiome biome) {
