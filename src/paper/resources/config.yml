@@ -10,7 +10,7 @@ portal:
   cooldown-seconds: 3
 
 worldgen:
-  version: 2
+  version: 3
   regenerate-unexplored-chunks-only: true
 
 integrations:
