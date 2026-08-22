@@ -67,6 +67,12 @@ public final class AetherChunkGenerator extends ChunkGenerator {
                     continue;
                 }
 
+                Material topType = chunkData.getType(localX, top, localZ);
+                if (topType == Material.WHITE_WOOL || topType == Material.SNOW_BLOCK) {
+                    // This column contains only a decorative cloud shelf, not island terrain.
+                    continue;
+                }
+
                 FaeRealmBiome biome = biomeAt(seed, worldX, worldZ);
                 chunkData.setBlock(localX, top, localZ, biome.surface());
                 for (int depth = 1; depth <= 3; depth++) {
