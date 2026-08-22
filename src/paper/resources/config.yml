@@ -13,5 +13,11 @@ worldgen:
   version: 2
   regenerate-unexplored-chunks-only: true
 
+integrations:
+  betterstructures:
+    # Keep generic BetterStructures packs out of Fae Realm by default.
+    # A dedicated Fae Realm structure pack can opt in later.
+    allow-generic-structures-in-fae-realm: false
+
 messages:
   prefix: '<gold>[Aether Legacy]</gold> '
