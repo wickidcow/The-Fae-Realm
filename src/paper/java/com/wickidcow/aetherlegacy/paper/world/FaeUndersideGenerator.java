@@ -6,10 +6,7 @@ import org.bukkit.generator.WorldInfo;
 
 import java.util.SplittableRandom;
 
-/**
- * Adds sparse hanging formations beneath floating islands so the realm remains
- * visually interesting from below without force-loading neighboring chunks.
- */
+/** Adds sparse hanging formations beneath floating islands without force-loading chunks. */
 public final class FaeUndersideGenerator {
 
     private static final long UNDERSIDE_SALT = 0x082EFA98EC4E6C89L;
@@ -25,7 +22,8 @@ public final class FaeUndersideGenerator {
         int baseX = chunkX << 4;
         int baseZ = chunkZ << 4;
 
-        int attempts = 5 + random.nextInt(4);
+        int baseAttempts = 5 + random.nextInt(4);
+        int attempts = scaledAttempts(baseAttempts, settings.decorationDensity(), random);
         for (int attempt = 0; attempt < attempts; attempt++) {
             int worldX = baseX + 2 + random.nextInt(12);
             int worldZ = baseZ + 2 + random.nextInt(12);
@@ -69,6 +67,12 @@ public final class FaeUndersideGenerator {
                 region.setType(worldX, tipY, worldZ, tip);
             }
         }
+    }
+
+    private int scaledAttempts(int baseAttempts, double density, SplittableRandom random) {
+        double expected = Math.max(0.0, baseAttempts * density);
+        int whole = (int) Math.floor(expected);
+        return whole + (random.nextDouble() < expected - whole ? 1 : 0);
     }
 
     private int findLowestSolid(WorldInfo info,
