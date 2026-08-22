@@ -1,43 +1,47 @@
 # The Fae Realm
 
-**The Fae Realm** is a server-side fantasy world generator for **Paper 26.2 / Java 25**. It creates a separate floating-island realm entirely from a seed as players explore; it is not a pre-generated map download and does not require Forge, Fabric, or NeoForge on the client.
+**The Fae Realm** is a server-side fantasy world generator for **Paper 26.2 / Java 25**. It creates a separate floating-island realm from a seed as players explore. It is not a pre-generated map and does not require Forge, Fabric, or NeoForge on the client.
 
-The project began as a Paper-port experiment from a fork of The Aether. The active Paper implementation now has its own Fae Realm identity, generator, structures, resources, dungeons, progression, and runtime validation. The original NeoForge branch remains historical/reference source. No original Aether all-rights-reserved assets are bundled in the Paper plugin.
+The active Paper implementation has its own generator, regional identities, resources, structures, dungeons, progression hooks, portals, configuration and runtime validation. The original NeoForge source remains only as historical/reference material; the Paper plugin does not bundle the original Aether project's protected game assets.
 
-## Generator model
+## Generator v6
 
-The world folder defaults to `fae_realm`. New chunks are generated deterministically from the realm seed, so the same seed, settings, and generator version recreate the same terrain. Minecraft preserves already-generated chunks normally; generator updates apply to newly explored chunks unless the realm is intentionally regenerated.
+Generator revision **v6** is code-owned and recorded in each realm's `fae-realm-generator.yml`. It is deliberately not a user-editable config value. If a later generator revision opens an existing realm, old chunks remain untouched and the plugin warns that newly explored chunks will use the newer terrain rules.
 
-Current generator revision: **v5**.
+The same **seed + generator revision + generator settings** produces deterministic new terrain.
 
-Each world also stores `fae-realm-generator.yml` in its world folder with its seed, first/current generator version, preset, major terrain settings, and plugin version. If an existing realm is opened with a newer generator revision, the plugin warns that existing chunks remain unchanged while new exploration will use the new terrain rules.
+### Terrain engine
 
-## Terrain
+- Large floating continents and smaller satellite islands
+- Broad macro-noise that forms dense archipelagos and quieter open-sky zones
+- Irregular coastlines, ridges and configurable vertical relief
+- Internal caverns and open void beneath islands
+- Region-specific hanging underside formations
+- Optional decorative cloud shelves
+- Guaranteed safe starter continent at the origin
+- Five deterministic island profiles:
+  - **Balanced** — general-purpose floating continent
+  - **Plateau** — broad, flatter buildable landmasses
+  - **Spire** — narrower, taller dramatic islands
+  - **Terraced** — stepped fantasy mesas
+  - **Hollow** — thicker islands with stronger cavern identity
 
-- Large floating continents and satellite islands
-- Broad macro-noise producing dense archipelagos and quieter open-sky regions
-- Seeded coastline warping and ridge/elevation variation
-- Hollow island caverns with configurable frequency
-- Biome-specific hanging underside formations
-- Open void beneath the islands
-- Optional decorative cloud shelves at a configurable altitude
-- Guaranteed starter island at the realm origin
-- Configurable island density and vertical relief
+Terrain profiles can be disabled to use only the balanced shape.
 
 ### Terrain presets
 
 `worldgen.preset` provides four starting personalities:
 
-- **balanced** — intended default
-- **ethereal** — sparser islands, stronger height differences, fewer caverns
+- **balanced** — default all-purpose realm
+- **ethereal** — sparser islands and stronger height differences
 - **lush** — denser archipelagos with gentler relief
 - **wild** — stronger vertical relief and more caverns
 
-The preset values can be overridden individually with `island-density`, `vertical-scale`, `cave-density`, and `cloud-level`.
+Preset terrain can be overridden with `island-density`, `vertical-scale`, `cave-density`, and `cloud-level`.
 
 ## Fae regions
 
-Five server-side region identities control terrain palette, vegetation, structures, resources, and micro-features while mapping to vanilla client-visible biome data:
+Five server-side region identities control surface palettes, vegetation, structures, resources and small landmarks while mapping to vanilla client-visible biome data:
 
 - **Golden Meadows**
 - **Crystal Woods**
@@ -45,139 +49,168 @@ Five server-side region identities control terrain palette, vegetation, structur
 - **Ancient Fae Forest**
 - **Sky Highlands**
 
-Use `/fae biome` while inside the realm to report the current Fae region.
+Use `/fae biome` while in the realm to inspect your current region. Admins can use `/fae locate <region>` to search the deterministic region field without loading or generating chunks.
 
-## Decorations and micro-features
+## Ecology and landmarks
 
-Ordinary exploration contains smaller deterministic landmarks in addition to major structures:
+Ordinary exploration includes deterministic biome-aware decoration:
 
 - Golden Meadows: flower circles and glowing Sun Pools
-- Crystal Woods: crystal spires and amethyst outcrops
-- Mist Gardens: mushroom clusters and pale-moss pockets
-- Ancient Fae Forest: fallen ancient logs, moss, and fern details
-- Sky Highlands: standing-stone formations
-- Region-specific trees and surface vegetation
+- Crystal Woods: cherry growth, crystal spires and amethyst outcrops
+- Mist Gardens: pale vegetation and mushroom clusters
+- Ancient Fae Forest: dense trees, moss, ferns and fallen ancient logs
+- Sky Highlands: birch growth and standing-stone formations
 - Sparse small ruins
-- Hanging stone, crystal, moss, and light formations beneath islands
+- Hanging stone, crystal, moss and light formations under islands
+
+`decoration-density` scales trees, micro-landmarks, outcrops and small ruins without changing the seed.
 
 ## Realm resources
 
-The Fae Realm has its own deterministic biome-weighted underground resource pass:
+A deterministic underground resource pass gives regions different mining identities:
 
-- Golden Meadows favor gold and copper
-- Crystal Woods favor amethyst and lapis, with rare diamonds
-- Mist Gardens favor lapis and iron with rare glowstone pockets
-- Ancient Fae Forest favors emeralds with rare diamonds
-- Sky Highlands favors iron and copper with rarer gold
+- Golden Meadows: gold, copper and rare emerald
+- Crystal Woods: amethyst, lapis and rare diamond
+- Mist Gardens: lapis, iron and rare glowstone pockets
+- Ancient Fae Forest: emerald, coal and rare diamond
+- Sky Highlands: iron, copper and rarer gold
 
-Resource generation can be disabled independently from structures and decorations.
+`resource-density` independently scales generated resource attempts. The entire resource layer can also be disabled.
 
 ## Procedural structures
 
-The Fae Realm owns its core structure layer and does not need another plugin to function.
+The Fae Realm owns its core structure layer and does not require an external structure plugin:
 
 - **Golden Meadows:** Sun Court Shrines
 - **Crystal Woods:** Crystal Temples
 - **Mist Gardens:** Mist Sanctums
 - **Ancient Fae Forest:** Ancient Watchtowers
 - **Sky Highlands:** Sky Gates
-- **All regions:** rare Dungeon Gates
+- **All regions:** rare Dungeon Gates leading into Fae Vaults
 
-Structure candidates are seed-derived, terrain-tested, and placed through Paper `LimitedRegion` generation without force-loading neighboring chunks.
+Structure candidates are seed-derived, terrain-tested and placed through Paper `LimitedRegion` generation without force-loading neighboring chunks.
 
-## Fae Vault dungeons
+Server owners can tune:
 
-Rare Dungeon Gates descend into chunk-local **Fae Vaults**. The current dungeon framework includes:
+- `structure-spacing-chunks` — size of each major-structure placement cell
+- `dungeon-chance` — chance a valid major site becomes a Fae Vault instead of its regional landmark
 
-- Descending gate passage
-- Main hall
-- Spiral descent
-- Lower relic vault
-- Biome-specific block palettes
-- Three deterministic room plans: **Hall of Echoes**, **Twin Reliquaries**, and **Faerie Crossing**
-- Loot-ready generated barrels
-- Deterministic first-open loot while protecting player-placed barrels from being converted into loot containers
+## Fae Vaults
 
-The first vault system deliberately stays inside one chunk for async-generation safety. Larger multi-chunk castles and dungeons can later use queued placement or a dedicated BetterStructures Fae content pack.
+Rare Dungeon Gates descend into chunk-local Fae Vaults designed to remain safe during asynchronous generation:
 
-## Progression
+- descending entrance passage
+- main hall
+- lower relic vault
+- side chambers and lighting
+- biome-specific palettes
+- deterministic room plans:
+  - **Hall of Echoes**
+  - **Twin Reliquaries**
+  - **Faerie Crossing**
+- generated loot barrels with deterministic first-open loot
 
-The first vanilla-client-safe progression hooks are included without requiring ItemsAdder or a resource pack:
+Player-placed barrels are not converted into generated dungeon loot.
 
-- **Fae Essence** — vanilla amethyst-shard-backed custom item with persistent plugin identity
-- **Fae Vault Key** — vanilla trial-key-backed custom item with persistent plugin identity
-- Fae-generated resource blocks can release Fae Essence when mined
+## Progression hooks
+
+The first vanilla-client-safe progression layer includes:
+
+- **Fae Essence** — amethyst-shard-backed custom item with plugin identity
+- **Fae Vault Key** — trial-key-backed custom item with plugin identity
+- Fae-generated resource blocks can release Essence when mined
 - Fae Vault loot can contain Essence and rare Vault Keys
-- Essence drop chance is configurable
 
-These items provide stable hooks for future recipes, bosses, keys, advancement systems, and optional custom-model integrations.
+These provide stable hooks for future recipes, bosses, advancements and optional custom-model integrations without requiring a resource pack today.
 
 ## BetterStructures compatibility
 
-BetterStructures is optional; The Fae Realm does not require it.
+BetterStructures is optional. The Fae Realm works standalone.
 
-The BetterStructures fork now exposes `ValidWorldsConfig.setWorldValidity(...)`, allowing The Fae Realm to mark `fae_realm` invalid **before BetterStructures runs its new-chunk scanners**. Generic BetterStructures structures therefore stay out of the realm by default without wasting surface/underground/sky/dungeon scan work.
+Compatible BetterStructures builds expose `ValidWorldsConfig.setWorldValidity(...)`, allowing The Fae Realm to exclude `fae_realm` before BetterStructures runs its surface, underground, sky or dungeon scans. Generic BetterStructures packs therefore stay out of the realm by default without wasted scan work.
 
-Older BetterStructures builds remain supported through a cancellable placement-event fallback. A future dedicated Fae Realm structure pack can explicitly opt back in for large schematic-based landmarks.
+Older BetterStructures builds use a cancellable placement-event fallback. A dedicated Fae Realm BetterStructures content pack can be allowed later for very large schematic-based landmarks.
 
-## Portal and void behavior
+## Portal and realm behavior
 
-Build a 4x5 Glowstone frame and use a water bucket inside it to activate the portal. Entering its water-filled interior transports the player to the Fae Realm and remembers a return location.
+Build a **4x5 Glowstone frame** and use a water bucket inside it. The plugin fills the 2x3 interior and turns it into the realm portal. Walking into the water sends the player to Fae Realm and stores a persistent return point.
 
-By default, falling beneath the floating realm returns the player to a normal world rather than killing them. This is configurable as:
+The generated arrival island and return portal are initialized **once**. On later boots the plugin preserves player changes around realm spawn instead of reconstructing the platform.
 
-- `return-to-overworld`
+Falling into the void can be configured as:
+
+- `return-to-overworld` (default)
 - `fae-spawn`
 - `death`
 
+PvP, daylight cycle, weather cycle and mob spawning can be controlled independently for the realm.
+
 ## Commands
 
-- `/fae` — travel to the Fae Realm
-- `/faerealm` — alias for `/fae`
-- `/aether` — legacy compatibility alias
-- `/fae return` — return to a normal world
-- `/fae info` — show version, seed, generator revision/preset, terrain settings, and BetterStructures status
-- `/fae biome` — report the current Fae region
-- `/fae reload` — reload non-generator configuration (admin)
+- `/fae` — enter the Fae Realm
+- `/faerealm` — alias
+- `/aether` — legacy development alias
+- `/fae return` — return to the saved portal location
+- `/fae biome` — show current Fae region
+- `/fae info` — show seed, generator v6, preset, terrain/layer settings and BetterStructures status
+- `/fae help` — command help
+- `/fae locate <region>` — admin deterministic region locator; does not generate chunks
+- `/fae reload` — admin reload for non-generator settings
+
+`/fae info`, `/fae help`, `/fae locate`, and `/fae reload` are console-safe where applicable.
 
 ## Configuration
 
-The major generator layers are independent:
+Core generator controls:
 
 ```yaml
 worldgen:
-  version: 5
   preset: balanced
   island-density: 1.0
   vertical-scale: 1.0
   cave-density: 1.0
+  terrain-profiles: true
   cloud-level: 74
+  decoration-density: 1.0
+  resource-density: 1.0
+  structure-spacing-chunks: 10
+  dungeon-chance: 0.12
   clouds: true
   decorations: true
   structures: true
   resources: true
-
-progression:
-  enabled: true
-  essence-drop-chance: 0.22
 ```
 
-World-generator settings are captured when the world is loaded and require a restart. They affect newly generated chunks; existing chunks are never automatically rewritten.
+Generator settings are captured when the world is loaded and require a restart. They affect newly generated chunks only; existing chunks are never automatically rewritten.
+
+## Generator provenance
+
+Every Fae Realm stores `fae-realm-generator.yml` in the world folder with:
+
+- first and current generator revision
+- original seed
+- current preset
+- terrain density / vertical / cavern values
+- terrain-profile state
+- decoration and resource density
+- structure spacing and dungeon chance
+- plugin version and world name
+
+This makes mixed-generation worlds diagnosable after upgrades.
 
 ## Validation
 
-CI now has two separate gates:
+CI has two release gates:
 
-1. **Build The Fae Realm** — Java 25 compilation and finished-JAR content verification.
-2. **Paper 26.2 Runtime Smoke** — builds the candidate, downloads the current stable Paper 26.2 server, boots it twice, verifies `fae_realm` is created, verifies generator metadata is written, preserves the generated world between boots, and requires clean server shutdown.
+1. **Build The Fae Realm** — Java 25 compilation, finished-JAR content checks, and an unarchived raw `.jar` Actions artifact named **TheFaeRealm-raw-jar**.
+2. **Paper 26.2 Runtime Smoke** — downloads the current stable Paper 26.2 server, boots the candidate twice, verifies realm storage and v6 metadata, requires clean shutdown, and confirms the arrival area is initialized only on the first boot.
 
 ## Build target
 
 - Paper 26.2
 - Java 25
-- Output: `TheFaeRealm-0.1.0-SNAPSHOT.jar`
 - BetterStructures: optional soft dependency
+- Client mods: not required
+- Output: raw `TheFaeRealm-<version>.jar`
 
-## Development status
-
-The current branch is pre-release. It already contains the core pieces of a usable fantasy generator—macro terrain, five regional identities, biome-specific vegetation/features, resources, procedural structures, vault dungeons, portal travel, void handling, progression hooks, generator metadata, configuration presets, and BetterStructures coexistence. Remaining work before calling `0.1.0` production-ready centers on real-Paper runtime validation, richer ecology, expanded large structures/dungeons, admin locate/diagnostic tooling, performance profiling, and additional regression tests.
+The Paper implementation is intended to be a standalone fantasy generator in the same broad category as configurable world-generation plugins: install the JAR, configure the realm personality, restart, and explore newly generated Fae terrain indefinitely.
