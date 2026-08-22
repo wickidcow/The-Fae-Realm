@@ -16,17 +16,19 @@ import java.util.SplittableRandom;
 /**
  * Deterministic floating-continent generator for the Fae Realm.
  *
- * <p>The generator is fully server-side and uses only vanilla block states.
- * It creates larger floating landmasses, satellite islands, biome palettes,
- * shallow island caverns, cloud shelves and deterministic decoration hooks.
- * The same world seed always recreates the same terrain.</p>
+ * <p>The generator is fully server-side and uses only vanilla block states. A broad
+ * macro-noise field groups islands into denser archipelagos and quieter open-sky
+ * regions, while per-island noise controls irregular coastlines, vertical relief,
+ * caverns and regional palettes. The same seed and settings recreate the same terrain.</p>
  */
 public final class AetherChunkGenerator extends ChunkGenerator {
 
     private static final int CELL_SIZE = 128;
-    private static final int MAX_RADIUS = 64;
+    private static final int MAX_RADIUS = 76;
     private static final int MIN_ISLAND_Y = 92;
     private static final int MAX_ISLAND_Y = 176;
+    private static final int WORLD_MIN_ISLAND_Y = 78;
+    private static final int WORLD_MAX_ISLAND_Y = 208;
 
     private final FaeGeneratorSettings settings;
 
@@ -81,7 +83,6 @@ public final class AetherChunkGenerator extends ChunkGenerator {
 
                 Material topType = chunkData.getType(localX, top, localZ);
                 if (topType == Material.WHITE_WOOL || topType == Material.SNOW_BLOCK) {
-                    // This column contains only a decorative cloud shelf, not island terrain.
                     continue;
                 }
 
@@ -131,8 +132,8 @@ public final class AetherChunkGenerator extends ChunkGenerator {
         int maxCellX = Math.floorDiv(maxX + MAX_RADIUS, CELL_SIZE);
         int minCellZ = Math.floorDiv(minZ - MAX_RADIUS, CELL_SIZE);
         int maxCellZ = Math.floorDiv(maxZ + MAX_RADIUS, CELL_SIZE);
-        double islandChance = Math.max(0.20, Math.min(0.98, 0.86 * settings.islandDensity()));
-        double satelliteChance = Math.max(0.08, Math.min(0.70, 0.34 * settings.islandDensity()));
+        double baseIslandChance = clamp(0.20, 0.98, 0.86 * settings.islandDensity());
+        double baseSatelliteChance = clamp(0.08, 0.70, 0.34 * settings.islandDensity());
 
         for (int cellX = minCellX; cellX <= maxCellX; cellX++) {
             for (int cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) {
@@ -140,30 +141,63 @@ public final class AetherChunkGenerator extends ChunkGenerator {
                     continue;
                 }
 
+                int macroX = cellX * CELL_SIZE + CELL_SIZE / 2;
+                int macroZ = cellZ * CELL_SIZE + CELL_SIZE / 2;
+                double macro = FaeNoise.fractal(
+                    worldSeed ^ 0xCBBB9D5DC1059ED8L,
+                    macroX * 0.0018,
+                    macroZ * 0.0018,
+                    3,
+                    2.0,
+                    0.52);
+                double macro01 = clamp(0.0, 1.0, (macro + 1.0) * 0.5);
+
                 SplittableRandom cellRandom = new SplittableRandom(mixSeed(worldSeed, cellX, cellZ));
-                if (cellRandom.nextDouble() > islandChance) {
+                double localIslandChance = clamp(0.12, 0.99,
+                    baseIslandChance * (0.68 + macro01 * 0.62));
+                if (cellRandom.nextDouble() > localIslandChance) {
                     continue;
                 }
 
                 int centerX = cellX * CELL_SIZE + cellRandom.nextInt(20, CELL_SIZE - 20);
                 int centerZ = cellZ * CELL_SIZE + cellRandom.nextInt(20, CELL_SIZE - 20);
-                int centerY = cellRandom.nextInt(MIN_ISLAND_Y, MAX_ISLAND_Y + 1);
-                int radius = cellRandom.nextInt(26, MAX_RADIUS + 1);
-                int thickness = cellRandom.nextInt(14, 30);
+
+                int rawCenterY = cellRandom.nextInt(MIN_ISLAND_Y, MAX_ISLAND_Y + 1);
+                int midpoint = (MIN_ISLAND_Y + MAX_ISLAND_Y) / 2;
+                int scaledY = midpoint + (int) Math.round((rawCenterY - midpoint) * settings.verticalScale());
+                int macroLift = (int) Math.round(macro * 13.0 * settings.verticalScale());
+                int centerY = clampInt(WORLD_MIN_ISLAND_Y, WORLD_MAX_ISLAND_Y, scaledY + macroLift);
+
+                int radius = clampInt(22, MAX_RADIUS,
+                    cellRandom.nextInt(26, 65) + (int) Math.round(macro * 12.0));
+                int thickness = clampInt(12, 34,
+                    cellRandom.nextInt(14, 30) + (int) Math.round(macro01 * 5.0));
                 double warp = 0.78 + cellRandom.nextDouble() * 0.48;
 
                 if (intersects(minX, maxX, minZ, maxZ, centerX, centerZ, radius)) {
                     islands.add(new Island(centerX, centerZ, centerY, radius, thickness, warp));
                 }
 
-                if (cellRandom.nextDouble() < satelliteChance) {
+                double localSatelliteChance = clamp(0.05, 0.78,
+                    baseSatelliteChance * (0.72 + macro01 * 0.58));
+                int satelliteCount = cellRandom.nextDouble() < localSatelliteChance ? 1 : 0;
+                if (satelliteCount > 0 && macro01 > 0.72 && cellRandom.nextDouble() < 0.28) {
+                    satelliteCount++;
+                }
+
+                for (int satellite = 0; satellite < satelliteCount; satellite++) {
                     int satelliteX = centerX + cellRandom.nextInt(-72, 73);
                     int satelliteZ = centerZ + cellRandom.nextInt(-72, 73);
                     int satelliteY = centerY + cellRandom.nextInt(-18, 19);
                     int satelliteRadius = cellRandom.nextInt(10, 24);
                     if (intersects(minX, maxX, minZ, maxZ, satelliteX, satelliteZ, satelliteRadius)) {
-                        islands.add(new Island(satelliteX, satelliteZ, satelliteY, satelliteRadius,
-                            cellRandom.nextInt(8, 16), 0.7 + cellRandom.nextDouble() * 0.4));
+                        islands.add(new Island(
+                            satelliteX,
+                            satelliteZ,
+                            clampInt(WORLD_MIN_ISLAND_Y, WORLD_MAX_ISLAND_Y, satelliteY),
+                            satelliteRadius,
+                            cellRandom.nextInt(8, 16),
+                            0.7 + cellRandom.nextDouble() * 0.4));
                     }
                 }
             }
@@ -203,10 +237,11 @@ public final class AetherChunkGenerator extends ChunkGenerator {
                 double ridge = Math.abs(FaeNoise.fractal(seed ^ 0x7F4A7C15L,
                     worldX * 0.011, worldZ * 0.011, 3, 2.0, 0.5));
 
+                double vertical = settings.verticalScale();
                 int topY = island.y()
-                    + (int) Math.round(edge * 7.0)
-                    + (int) Math.round(terrainNoise * 7.0)
-                    + (int) Math.round(ridge * edge * 5.0);
+                    + (int) Math.round(edge * 7.0 * Math.min(1.35, vertical))
+                    + (int) Math.round(terrainNoise * 7.0 * vertical)
+                    + (int) Math.round(ridge * edge * 5.0 * vertical);
 
                 int depth = Math.max(4, (int) Math.round(
                     island.thickness() * (0.16 + edge * edge * 0.9)));
@@ -246,12 +281,14 @@ public final class AetherChunkGenerator extends ChunkGenerator {
         double vertical = (y - bottomY) / (double) Math.max(1, topY - bottomY);
         double cave = FaeNoise.fractal(seed ^ 0x6A09E667F3BCC909L,
             worldX * 0.055, (worldZ + y * 2.7) * 0.055, 3, 2.0, 0.55);
-        return cave > 0.53 && vertical > 0.22 && vertical < 0.78;
+        double threshold = clamp(0.40, 0.68,
+            0.53 - ((settings.caveDensity() - 1.0) * 0.12));
+        return cave > threshold && vertical > 0.22 && vertical < 0.78;
     }
 
     private void generateCloudShelf(ChunkData chunkData, long seed, int chunkMinX, int chunkMinZ) {
-        int cloudY = 74;
-        if (cloudY < chunkData.getMinHeight() || cloudY >= chunkData.getMaxHeight()) {
+        int cloudY = settings.cloudLevel();
+        if (cloudY < chunkData.getMinHeight() || cloudY + 1 >= chunkData.getMaxHeight()) {
             return;
         }
 
@@ -355,6 +392,14 @@ public final class AetherChunkGenerator extends ChunkGenerator {
             && centerX - radius <= maxX
             && centerZ + radius >= minZ
             && centerZ - radius <= maxZ;
+    }
+
+    private static double clamp(double min, double max, double value) {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    private static int clampInt(int min, int max, int value) {
+        return Math.max(min, Math.min(max, value));
     }
 
     private static long mixSeed(long seed, int x, int z) {
