@@ -21,7 +21,7 @@ portal:
   cooldown-seconds: 3
 
 worldgen:
-  version: 5
+  version: 6
 
   # balanced | ethereal | lush | wild
   # Presets provide sensible terrain personalities. The values below can override
@@ -37,8 +37,26 @@ worldgen:
   # Higher values produce more internal island caverns. Valid range: 0.20 - 1.80.
   cave-density: 1.0
 
+  # Enable deterministic island personalities: balanced, plateau, spire,
+  # terraced, and hollow. Turning this off makes generated islands use the
+  # balanced profile only.
+  terrain-profiles: true
+
   # Decorative cloud shelf Y level. Valid range is clamped to 48 - 120.
   cloud-level: 74
+
+  # Density multipliers for generated details. 0 disables that density layer;
+  # values up to 2.5 are supported. The layer toggle below can still disable it.
+  decoration-density: 1.0
+  resource-density: 1.0
+
+  # One major structure candidate is chosen per square cell of this many chunks.
+  # Valid range: 6 - 24. Lower values make structures more common.
+  structure-spacing-chunks: 10
+
+  # Chance that a valid major-structure site becomes a Fae Vault instead of its
+  # region-specific landmark. Valid range: 0.0 - 0.50.
+  dungeon-chance: 0.12
 
   # Independent generator layers. Changing these affects newly generated chunks.
   clouds: true
