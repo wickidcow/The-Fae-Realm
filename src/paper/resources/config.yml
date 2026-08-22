@@ -3,6 +3,10 @@ world:
   display-name: Fae Realm
   # 0 = let Bukkit choose the seed. Set a number for reproducible realms.
   seed: 0
+
+  # Used only when the realm is initialized for the first time. After that,
+  # Minecraft's saved Fae world spawn is authoritative and this value does not
+  # move existing players or rebuild the arrival platform.
   spawn-y: 136
 
   # What happens when a player falls beneath the floating islands:
@@ -72,6 +76,3 @@ integrations:
     # Keep generic BetterStructures packs out of Fae Realm by default.
     # A dedicated Fae Realm structure pack can opt in later.
     allow-generic-structures-in-fae-realm: false
-
-messages:
-  prefix: '<light_purple>[Fae Realm]</light_purple> '
