@@ -46,7 +46,9 @@ public final class BetterStructuresIntegration {
         }
 
         earlyWorldExclusion = tryExcludeWorldBeforeScans(betterStructures);
-        registerPlacementGuard(betterStructures);
+        if (!earlyWorldExclusion) {
+            registerPlacementGuard(betterStructures);
+        }
 
         if (earlyWorldExclusion) {
             plugin.getLogger().info("BetterStructures detected; Fae Realm is excluded before BetterStructures chunk scans.");
@@ -62,8 +64,8 @@ public final class BetterStructuresIntegration {
                 false,
                 betterStructures.getClass().getClassLoader());
             Method setWorldValidity = validWorldsConfig.getMethod("setWorldValidity", World.class, boolean.class);
-            Object result = setWorldValidity.invoke(null, plugin.getAetherWorld(), false);
-            return result instanceof Boolean applied && applied;
+            setWorldValidity.invoke(null, plugin.getAetherWorld(), false);
+            return true;
         } catch (ReflectiveOperationException | LinkageError ignored) {
             // Older BetterStructures builds do not expose the integration API. The event
             // guard below remains a safe compatibility fallback.
