@@ -20,6 +20,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: fae-realm-runtime-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 env:
   PAPER_MINECRAFT_VERSION: "26.2"
   PAPER_DOWNLOAD_USER_AGENT: "The-Fae-Realm-CI/0.1.0-SNAPSHOT (https://github.com/wickidcow/The-Fae-Realm)"
