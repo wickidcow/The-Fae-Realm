@@ -12,11 +12,11 @@ commands:
   fae:
     aliases: [faerealm, aether]
     description: Travel to or inspect the Fae Realm.
-    usage: /fae [return|info|reload]
+    usage: /fae [return|info|biome|reload]
     permission: faerealm.command
 permissions:
   faerealm.command:
-    description: Allows travel to the Fae Realm.
+    description: Allows travel to and inspection of the Fae Realm.
     default: true
   faerealm.admin:
     description: Allows administrative Fae Realm commands.
