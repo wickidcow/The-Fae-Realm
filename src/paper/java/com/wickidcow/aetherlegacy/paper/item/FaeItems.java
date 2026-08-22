@@ -9,20 +9,25 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.List;
+import java.util.Objects;
+
 /** Vanilla-backed custom items used by Fae Realm progression. */
 public final class FaeItems {
 
     private final NamespacedKey itemTypeKey;
 
     public FaeItems(JavaPlugin plugin) {
-        this.itemTypeKey = new NamespacedKey(plugin, "fae_item_type");
+        // Keep the public item identity stable even if plugin.yml naming changes later.
+        this.itemTypeKey = Objects.requireNonNull(
+            NamespacedKey.fromString("thefaerealm:fae_item_type"));
     }
 
     public ItemStack essence(int amount) {
         ItemStack item = new ItemStack(Material.AMETHYST_SHARD, Math.max(1, amount));
         ItemMeta meta = item.getItemMeta();
         meta.displayName(Component.text("Fae Essence", NamedTextColor.LIGHT_PURPLE));
-        meta.lore(java.util.List.of(
+        meta.lore(List.of(
             Component.text("Condensed magic from the Fae Realm.", NamedTextColor.GRAY)));
         meta.getPersistentDataContainer().set(itemTypeKey, PersistentDataType.STRING, "fae_essence");
         item.setItemMeta(meta);
@@ -33,7 +38,7 @@ public final class FaeItems {
         ItemStack item = new ItemStack(Material.TRIAL_KEY);
         ItemMeta meta = item.getItemMeta();
         meta.displayName(Component.text("Fae Vault Key", NamedTextColor.AQUA));
-        meta.lore(java.util.List.of(
+        meta.lore(List.of(
             Component.text("An old key humming with veil-magic.", NamedTextColor.GRAY)));
         meta.getPersistentDataContainer().set(itemTypeKey, PersistentDataType.STRING, "fae_vault_key");
         item.setItemMeta(meta);
