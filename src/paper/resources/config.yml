@@ -1,12 +1,16 @@
 world:
   name: fae_realm
-  display-name: 'Fae Realm'
+  display-name: Fae Realm
   seed: 0
   spawn-y: 136
 
 portal:
   enabled: true
   cooldown-seconds: 3
+
+worldgen:
+  version: 2
+  regenerate-unexplored-chunks-only: true
 
 messages:
   prefix: '<gold>[Aether Legacy]</gold> '
