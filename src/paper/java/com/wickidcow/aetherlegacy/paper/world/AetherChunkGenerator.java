@@ -19,7 +19,8 @@ import java.util.SplittableRandom;
  * <p>The generator is fully server-side and uses only vanilla block states. A broad
  * macro-noise field groups islands into denser archipelagos and quieter open-sky
  * regions, while per-island noise controls irregular coastlines, vertical relief,
- * caverns and regional palettes. The same seed and settings recreate the same terrain.</p>
+ * caverns and regional palettes. Optional island profiles add plateaus, spires,
+ * terraces and hollow landmasses without requiring client-side content.</p>
  */
 public final class AetherChunkGenerator extends ChunkGenerator {
 
@@ -29,6 +30,7 @@ public final class AetherChunkGenerator extends ChunkGenerator {
     private static final int MAX_ISLAND_Y = 176;
     private static final int WORLD_MIN_ISLAND_Y = 78;
     private static final int WORLD_MAX_ISLAND_Y = 208;
+    private static final long PROFILE_SALT = 0xD1310BA698DFB5ACL;
 
     private final FaeGeneratorSettings settings;
 
@@ -125,7 +127,8 @@ public final class AetherChunkGenerator extends ChunkGenerator {
         List<Island> islands = new ArrayList<>();
 
         if (intersects(minX, maxX, minZ, maxZ, 0, 0, 58)) {
-            islands.add(new Island(0, 0, 132, 58, 24, 1.0));
+            // The origin deliberately stays broad and calm so first arrival is always safe.
+            islands.add(new Island(0, 0, 132, 58, 24, 1.0, IslandProfile.PLATEAU));
         }
 
         int minCellX = Math.floorDiv(minX - MAX_RADIUS, CELL_SIZE);
@@ -161,6 +164,7 @@ public final class AetherChunkGenerator extends ChunkGenerator {
 
                 int centerX = cellX * CELL_SIZE + cellRandom.nextInt(20, CELL_SIZE - 20);
                 int centerZ = cellZ * CELL_SIZE + cellRandom.nextInt(20, CELL_SIZE - 20);
+                IslandProfile profile = chooseProfile(worldSeed, cellX, cellZ);
 
                 int rawCenterY = cellRandom.nextInt(MIN_ISLAND_Y, MAX_ISLAND_Y + 1);
                 int midpoint = (MIN_ISLAND_Y + MAX_ISLAND_Y) / 2;
@@ -174,8 +178,28 @@ public final class AetherChunkGenerator extends ChunkGenerator {
                     cellRandom.nextInt(14, 30) + (int) Math.round(macro01 * 5.0));
                 double warp = 0.78 + cellRandom.nextDouble() * 0.48;
 
+                switch (profile) {
+                    case PLATEAU -> {
+                        radius = clampInt(28, MAX_RADIUS, radius + 9);
+                        thickness = clampInt(14, 36, thickness + 2);
+                    }
+                    case SPIRE -> {
+                        radius = clampInt(18, 58, radius - 7);
+                        thickness = clampInt(17, 40, thickness + 6);
+                        centerY = clampInt(WORLD_MIN_ISLAND_Y, WORLD_MAX_ISLAND_Y, centerY + 8);
+                    }
+                    case TERRACED -> radius = clampInt(26, MAX_RADIUS, radius + 4);
+                    case HOLLOW -> {
+                        radius = clampInt(26, MAX_RADIUS, radius + 6);
+                        thickness = clampInt(18, 40, thickness + 5);
+                    }
+                    case BALANCED -> {
+                        // Base dimensions already represent the balanced profile.
+                    }
+                }
+
                 if (intersects(minX, maxX, minZ, maxZ, centerX, centerZ, radius)) {
-                    islands.add(new Island(centerX, centerZ, centerY, radius, thickness, warp));
+                    islands.add(new Island(centerX, centerZ, centerY, radius, thickness, warp, profile));
                 }
 
                 double localSatelliteChance = clamp(0.05, 0.78,
@@ -190,6 +214,9 @@ public final class AetherChunkGenerator extends ChunkGenerator {
                     int satelliteZ = centerZ + cellRandom.nextInt(-72, 73);
                     int satelliteY = centerY + cellRandom.nextInt(-18, 19);
                     int satelliteRadius = cellRandom.nextInt(10, 24);
+                    IslandProfile satelliteProfile = settings.terrainProfiles() && cellRandom.nextInt(5) == 0
+                        ? IslandProfile.SPIRE
+                        : IslandProfile.BALANCED;
                     if (intersects(minX, maxX, minZ, maxZ, satelliteX, satelliteZ, satelliteRadius)) {
                         islands.add(new Island(
                             satelliteX,
@@ -197,13 +224,36 @@ public final class AetherChunkGenerator extends ChunkGenerator {
                             clampInt(WORLD_MIN_ISLAND_Y, WORLD_MAX_ISLAND_Y, satelliteY),
                             satelliteRadius,
                             cellRandom.nextInt(8, 16),
-                            0.7 + cellRandom.nextDouble() * 0.4));
+                            0.7 + cellRandom.nextDouble() * 0.4,
+                            satelliteProfile));
                     }
                 }
             }
         }
 
         return islands;
+    }
+
+    private IslandProfile chooseProfile(long worldSeed, int cellX, int cellZ) {
+        if (!settings.terrainProfiles()) {
+            return IslandProfile.BALANCED;
+        }
+        SplittableRandom profileRandom = new SplittableRandom(
+            mixSeed(worldSeed ^ PROFILE_SALT, cellX, cellZ));
+        int roll = profileRandom.nextInt(100);
+        if (roll < 34) {
+            return IslandProfile.BALANCED;
+        }
+        if (roll < 53) {
+            return IslandProfile.PLATEAU;
+        }
+        if (roll < 69) {
+            return IslandProfile.SPIRE;
+        }
+        if (roll < 85) {
+            return IslandProfile.TERRACED;
+        }
+        return IslandProfile.HOLLOW;
     }
 
     private void carveIsland(ChunkData chunkData, long seed, Island island, int chunkMinX, int chunkMinZ) {
@@ -237,14 +287,16 @@ public final class AetherChunkGenerator extends ChunkGenerator {
                 double ridge = Math.abs(FaeNoise.fractal(seed ^ 0x7F4A7C15L,
                     worldX * 0.011, worldZ * 0.011, 3, 2.0, 0.5));
 
-                double vertical = settings.verticalScale();
-                int topY = island.y()
-                    + (int) Math.round(edge * 7.0 * Math.min(1.35, vertical))
-                    + (int) Math.round(terrainNoise * 7.0 * vertical)
-                    + (int) Math.round(ridge * edge * 5.0 * vertical);
-
+                int topY = island.y() + profileRelief(island.profile(), edge, terrainNoise, ridge);
+                double depthMultiplier = switch (island.profile()) {
+                    case SPIRE -> 1.20;
+                    case HOLLOW -> 1.14;
+                    case PLATEAU -> 1.05;
+                    case TERRACED -> 0.96;
+                    case BALANCED -> 1.0;
+                };
                 int depth = Math.max(4, (int) Math.round(
-                    island.thickness() * (0.16 + edge * edge * 0.9)));
+                    island.thickness() * (0.16 + edge * edge * 0.9) * depthMultiplier));
                 int bottomY = topY - depth;
 
                 topY = Math.min(topY, maxHeight);
@@ -252,7 +304,7 @@ public final class AetherChunkGenerator extends ChunkGenerator {
 
                 FaeRealmBiome biome = biomeAt(seed, worldX, worldZ);
                 for (int y = bottomY; y <= topY; y++) {
-                    if (isCavern(seed, worldX, y, worldZ, topY, bottomY, edge)) {
+                    if (isCavern(seed, worldX, y, worldZ, topY, bottomY, edge, island.profile())) {
                         continue;
                     }
 
@@ -272,9 +324,35 @@ public final class AetherChunkGenerator extends ChunkGenerator {
         }
     }
 
+    private int profileRelief(IslandProfile profile, double edge, double terrainNoise, double ridge) {
+        double vertical = settings.verticalScale();
+        double relief = switch (profile) {
+            case BALANCED -> edge * 7.0 * Math.min(1.35, vertical)
+                + terrainNoise * 7.0 * vertical
+                + ridge * edge * 5.0 * vertical;
+            case PLATEAU -> edge * 4.5 * Math.min(1.15, vertical)
+                + terrainNoise * 3.2 * vertical
+                + ridge * edge * 1.8 * vertical;
+            case SPIRE -> Math.pow(edge, 1.65) * 18.0 * Math.min(1.55, vertical)
+                + terrainNoise * 9.0 * vertical
+                + ridge * edge * 8.0 * vertical;
+            case TERRACED -> {
+                double raw = edge * 9.0 * Math.min(1.35, vertical)
+                    + terrainNoise * 5.0 * vertical
+                    + ridge * edge * 3.2 * vertical;
+                yield Math.rint(raw / 4.0) * 4.0;
+            }
+            case HOLLOW -> edge * 6.0 * Math.min(1.30, vertical)
+                + terrainNoise * 6.2 * vertical
+                + ridge * edge * 4.0 * vertical;
+        };
+        return (int) Math.round(relief);
+    }
+
     private boolean isCavern(long seed, int worldX, int y, int worldZ,
-                             int topY, int bottomY, double edge) {
-        if (edge < 0.28 || y > topY - 5 || y < bottomY + 3) {
+                             int topY, int bottomY, double edge, IslandProfile profile) {
+        double minimumEdge = profile == IslandProfile.HOLLOW ? 0.20 : 0.28;
+        if (edge < minimumEdge || y > topY - 5 || y < bottomY + 3) {
             return false;
         }
 
@@ -283,6 +361,14 @@ public final class AetherChunkGenerator extends ChunkGenerator {
             worldX * 0.055, (worldZ + y * 2.7) * 0.055, 3, 2.0, 0.55);
         double threshold = clamp(0.40, 0.68,
             0.53 - ((settings.caveDensity() - 1.0) * 0.12));
+        threshold += switch (profile) {
+            case HOLLOW -> -0.08;
+            case SPIRE -> 0.03;
+            case PLATEAU -> 0.02;
+            case TERRACED -> 0.01;
+            case BALANCED -> 0.0;
+        };
+        threshold = clamp(0.36, 0.72, threshold);
         return cave > threshold && vertical > 0.22 && vertical < 0.78;
     }
 
@@ -414,6 +500,22 @@ public final class AetherChunkGenerator extends ChunkGenerator {
         return mixed;
     }
 
-    private record Island(int x, int z, int y, int radius, int thickness, double warp) {
+    private enum IslandProfile {
+        BALANCED,
+        PLATEAU,
+        SPIRE,
+        TERRACED,
+        HOLLOW
+    }
+
+    private record Island(
+        int x,
+        int z,
+        int y,
+        int radius,
+        int thickness,
+        double warp,
+        IslandProfile profile
+    ) {
     }
 }
