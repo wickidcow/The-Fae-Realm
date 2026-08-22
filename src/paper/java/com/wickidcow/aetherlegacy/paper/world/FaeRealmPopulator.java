@@ -15,6 +15,17 @@ import java.util.Random;
 public final class FaeRealmPopulator extends BlockPopulator {
 
     private static final FaeStructurePopulator STRUCTURES = new FaeStructurePopulator();
+    private static final FaeResourcePopulator RESOURCES = new FaeResourcePopulator();
+
+    private final FaeGeneratorSettings settings;
+
+    public FaeRealmPopulator() {
+        this(FaeGeneratorSettings.defaults());
+    }
+
+    public FaeRealmPopulator(@NotNull FaeGeneratorSettings settings) {
+        this.settings = settings;
+    }
 
     @Override
     public void populate(@NotNull WorldInfo worldInfo,
@@ -25,35 +36,43 @@ public final class FaeRealmPopulator extends BlockPopulator {
         int baseX = chunkX << 4;
         int baseZ = chunkZ << 4;
 
-        int treeAttempts = 1 + random.nextInt(3);
-        for (int i = 0; i < treeAttempts; i++) {
-            int x = baseX + random.nextInt(16);
-            int z = baseZ + random.nextInt(16);
-            int y = region.getHighestBlockYAt(x, z);
-            if (y < worldInfo.getMinHeight() || y + 8 >= worldInfo.getMaxHeight()) {
-                continue;
+        if (settings.resources()) {
+            RESOURCES.populate(worldInfo, chunkX, chunkZ, region);
+        }
+
+        if (settings.decorations()) {
+            int treeAttempts = 1 + random.nextInt(3);
+            for (int i = 0; i < treeAttempts; i++) {
+                int x = baseX + random.nextInt(16);
+                int z = baseZ + random.nextInt(16);
+                int y = region.getHighestBlockYAt(x, z);
+                if (y < worldInfo.getMinHeight() || y + 8 >= worldInfo.getMaxHeight()) {
+                    continue;
+                }
+
+                FaeRealmBiome biome = AetherChunkGenerator.biomeAt(worldInfo.getSeed(), x, z);
+                Material surface = region.getType(x, y, z);
+                if (surface != biome.surface()) {
+                    continue;
+                }
+
+                if (random.nextDouble() < treeChance(biome)) {
+                    placeTree(region, x, y + 1, z, biome, random);
+                }
             }
 
-            FaeRealmBiome biome = AetherChunkGenerator.biomeAt(worldInfo.getSeed(), x, z);
-            Material surface = region.getType(x, y, z);
-            if (surface != biome.surface()) {
-                continue;
+            if (random.nextInt(9) == 0) {
+                placeCrystalOutcrop(worldInfo, region, random, baseX, baseZ);
             }
 
-            if (random.nextDouble() < treeChance(biome)) {
-                placeTree(region, x, y + 1, z, biome, random);
+            if (random.nextInt(96) == 0) {
+                placeFaeRuin(worldInfo, region, random, baseX, baseZ);
             }
         }
 
-        if (random.nextInt(9) == 0) {
-            placeCrystalOutcrop(worldInfo, region, random, baseX, baseZ);
+        if (settings.structures()) {
+            STRUCTURES.populate(worldInfo, random, chunkX, chunkZ, region);
         }
-
-        if (random.nextInt(96) == 0) {
-            placeFaeRuin(worldInfo, region, random, baseX, baseZ);
-        }
-
-        STRUCTURES.populate(worldInfo, random, chunkX, chunkZ, region);
     }
 
     private double treeChance(FaeRealmBiome biome) {
