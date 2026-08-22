@@ -1,6 +1,7 @@
 package com.wickidcow.aetherlegacy.paper.loot;
 
 import com.wickidcow.aetherlegacy.paper.AetherLegacyPlugin;
+import com.wickidcow.aetherlegacy.paper.item.FaeItems;
 import com.wickidcow.aetherlegacy.paper.world.AetherChunkGenerator;
 import com.wickidcow.aetherlegacy.paper.world.FaeRealmBiome;
 import net.kyori.adventure.text.Component;
@@ -30,11 +31,13 @@ import java.util.SplittableRandom;
 public final class FaeDungeonLootListener implements Listener {
 
     private final AetherLegacyPlugin plugin;
+    private final FaeItems faeItems;
     private final NamespacedKey playerPlacedKey;
     private final NamespacedKey generatedLootKey;
 
     public FaeDungeonLootListener(AetherLegacyPlugin plugin) {
         this.plugin = plugin;
+        this.faeItems = new FaeItems(plugin);
         this.playerPlacedKey = new NamespacedKey(plugin, "player_placed_barrel");
         this.generatedLootKey = new NamespacedKey(plugin, "generated_dungeon_loot");
     }
@@ -83,10 +86,10 @@ public final class FaeDungeonLootListener implements Listener {
     }
 
     private void populate(Inventory inventory, FaeRealmBiome biome, SplittableRandom random) {
-        // Shared supplies keep every vault useful without flooding end-game items.
         addRandomSlot(inventory, new ItemStack(Material.EXPERIENCE_BOTTLE, 2 + random.nextInt(6)), random);
         addRandomSlot(inventory, new ItemStack(Material.GLOW_BERRIES, 3 + random.nextInt(8)), random);
         addRandomSlot(inventory, new ItemStack(Material.ENDER_PEARL, 1 + random.nextInt(3)), random);
+        addRandomSlot(inventory, faeItems.essence(1 + random.nextInt(3)), random);
 
         switch (biome) {
             case GOLDEN_MEADOWS -> {
@@ -111,6 +114,9 @@ public final class FaeDungeonLootListener implements Listener {
             }
         }
 
+        if (random.nextInt(7) == 0) {
+            addRandomSlot(inventory, faeItems.vaultKey(), random);
+        }
         if (random.nextInt(6) == 0) {
             addRandomSlot(inventory, namedRelic(Material.ECHO_SHARD, "Fae Echo", NamedTextColor.LIGHT_PURPLE), random);
         }
