@@ -19,6 +19,7 @@ public final class FaeStructurePopulator {
 
     private static final int STRUCTURE_CELL_CHUNKS = 10;
     private static final long STRUCTURE_SALT = 0x6A09E667F3BCC909L;
+    private final FaeDungeonGenerator dungeonGenerator = new FaeDungeonGenerator();
 
     public void populate(@NotNull WorldInfo worldInfo,
                          @NotNull Random random,
@@ -52,8 +53,19 @@ public final class FaeStructurePopulator {
         }
 
         int roll = cellRandom.nextInt(100);
-        if (roll < 12) {
-            placeDungeonGate(region, x, y + 1, z, biome);
+        if (roll < 12 && y - 18 > worldInfo.getMinHeight()) {
+            int entranceY = y + 1;
+            placeDungeonGate(region, x, entranceY, z, biome);
+            dungeonGenerator.place(
+                region,
+                x,
+                entranceY,
+                z,
+                biome,
+                worldInfo.getSeed(),
+                chunkX,
+                chunkZ
+            );
             return;
         }
 
