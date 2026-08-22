@@ -49,6 +49,11 @@ worldgen:
   # Existing chunks are never rewritten automatically.
   regenerate-unexplored-chunks-only: true
 
+progression:
+  enabled: true
+  # Chance for a Fae-generated ore/resource block to release Fae Essence when mined.
+  essence-drop-chance: 0.22
+
 integrations:
   betterstructures:
     # Keep generic BetterStructures packs out of Fae Realm by default.
