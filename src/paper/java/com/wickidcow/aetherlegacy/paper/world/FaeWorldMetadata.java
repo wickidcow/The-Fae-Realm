@@ -6,10 +6,9 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Locale;
 
-/**
- * Persists lightweight generator provenance inside the Fae Realm world folder.
- */
+/** Persists lightweight generator provenance inside the Fae Realm world folder. */
 public final class FaeWorldMetadata {
 
     private static final String FILE_NAME = "fae-realm-generator.yml";
@@ -17,11 +16,6 @@ public final class FaeWorldMetadata {
     private FaeWorldMetadata() {
     }
 
-    /**
-     * Returns whether this realm has already been initialized by The Fae Realm.
-     * This is intentionally based on the generator metadata file so startup does
-     * not rebuild the arrival platform/portal over player changes on every boot.
-     */
     public static boolean exists(World world) {
         return new File(world.getWorldFolder(), FILE_NAME).isFile();
     }
@@ -31,11 +25,18 @@ public final class FaeWorldMetadata {
         YamlConfiguration metadata = YamlConfiguration.loadConfiguration(file);
         int currentVersion = FaeGeneratorVersion.CURRENT;
         int previousVersion = metadata.getInt("current-generator-version", -1);
+        String currentFingerprint = fingerprint(settings);
+        String previousFingerprint = metadata.getString("current-settings-fingerprint");
 
         if (previousVersion > 0 && previousVersion != currentVersion) {
             plugin.getLogger().warning(
                 "Fae Realm generator changed from v" + previousVersion + " to v" + currentVersion
                     + ". Existing chunks are preserved; newly explored chunks will use the new generator.");
+        }
+        if (previousFingerprint != null && !previousFingerprint.equals(currentFingerprint)) {
+            plugin.getLogger().warning(
+                "Fae Realm generator settings changed since the previous boot. Existing chunks are preserved; "
+                    + "newly explored chunks will use the current preset/density/structure settings.");
         }
 
         if (!metadata.contains("first-generator-version")) {
@@ -44,9 +45,22 @@ public final class FaeWorldMetadata {
         if (!metadata.contains("created-seed")) {
             metadata.set("created-seed", world.getSeed());
         }
+        if (!metadata.contains("first-settings-fingerprint")) {
+            metadata.set("first-settings-fingerprint", currentFingerprint);
+            metadata.set("first-settings.preset", settings.preset().name().toLowerCase(Locale.ROOT));
+            metadata.set("first-settings.island-density", settings.islandDensity());
+            metadata.set("first-settings.vertical-scale", settings.verticalScale());
+            metadata.set("first-settings.cave-density", settings.caveDensity());
+            metadata.set("first-settings.terrain-profiles", settings.terrainProfiles());
+            metadata.set("first-settings.decoration-density", settings.decorationDensity());
+            metadata.set("first-settings.resource-density", settings.resourceDensity());
+            metadata.set("first-settings.structure-spacing-chunks", settings.structureSpacingChunks());
+            metadata.set("first-settings.dungeon-chance", settings.dungeonChance());
+        }
 
         metadata.set("current-generator-version", currentVersion);
-        metadata.set("current-preset", settings.preset().name().toLowerCase());
+        metadata.set("current-settings-fingerprint", currentFingerprint);
+        metadata.set("current-preset", settings.preset().name().toLowerCase(Locale.ROOT));
         metadata.set("current-island-density", settings.islandDensity());
         metadata.set("current-vertical-scale", settings.verticalScale());
         metadata.set("current-cave-density", settings.caveDensity());
@@ -63,5 +77,24 @@ public final class FaeWorldMetadata {
         } catch (IOException exception) {
             plugin.getLogger().warning("Could not save " + FILE_NAME + ": " + exception.getMessage());
         }
+    }
+
+    private static String fingerprint(FaeGeneratorSettings settings) {
+        return String.format(Locale.ROOT,
+            "%s|%.5f|%.5f|%.5f|%d|%s|%.5f|%.5f|%d|%.5f|%s|%s|%s|%s",
+            settings.preset().name(),
+            settings.islandDensity(),
+            settings.verticalScale(),
+            settings.caveDensity(),
+            settings.cloudLevel(),
+            settings.terrainProfiles(),
+            settings.decorationDensity(),
+            settings.resourceDensity(),
+            settings.structureSpacingChunks(),
+            settings.dungeonChance(),
+            settings.clouds(),
+            settings.decorations(),
+            settings.structures(),
+            settings.resources());
     }
 }
