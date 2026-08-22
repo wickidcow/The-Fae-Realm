@@ -1,6 +1,7 @@
 package com.wickidcow.aetherlegacy.paper.world;
 
 import com.wickidcow.aetherlegacy.paper.AetherLegacyPlugin;
+import com.wickidcow.aetherlegacy.paper.portal.AetherPortalListener;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.entity.Player;
@@ -10,15 +11,15 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 
-/**
- * Configurable handling for players who fall beneath Fae Realm islands.
- */
+/** Configurable handling for players who fall beneath Fae Realm islands. */
 public final class FaeVoidListener implements Listener {
 
     private final AetherLegacyPlugin plugin;
+    private final AetherPortalListener portalListener;
 
-    public FaeVoidListener(AetherLegacyPlugin plugin) {
+    public FaeVoidListener(AetherLegacyPlugin plugin, AetherPortalListener portalListener) {
         this.plugin = plugin;
+        this.portalListener = portalListener;
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -37,11 +38,13 @@ public final class FaeVoidListener implements Listener {
         event.setCancelled(true);
         if (behavior.equalsIgnoreCase("fae-spawn")) {
             player.teleport(plugin.getAetherArrivalLocation(), PlayerTeleportEvent.TeleportCause.PLUGIN);
-            player.sendMessage(Component.text("The Fae winds carry you back to safety.", NamedTextColor.LIGHT_PURPLE));
+            player.sendMessage(Component.text(
+                "The Fae winds carry you back to safety.", NamedTextColor.LIGHT_PURPLE));
             return;
         }
 
-        player.teleport(plugin.getDefaultReturnLocation(), PlayerTeleportEvent.TeleportCause.PLUGIN);
-        player.sendMessage(Component.text("You fall through the veil and return to the mortal world.", NamedTextColor.LIGHT_PURPLE));
+        player.teleport(portalListener.getReturnLocation(player), PlayerTeleportEvent.TeleportCause.PLUGIN);
+        player.sendMessage(Component.text(
+            "You fall through the veil and return to the mortal world.", NamedTextColor.LIGHT_PURPLE));
     }
 }
