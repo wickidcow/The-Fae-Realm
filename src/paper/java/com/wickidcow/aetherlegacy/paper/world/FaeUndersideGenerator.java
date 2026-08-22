@@ -1,58 +1,64 @@
 package com.wickidcow.aetherlegacy.paper.world;
 
 import org.bukkit.Material;
-import org.bukkit.generator.ChunkGenerator;
+import org.bukkit.generator.LimitedRegion;
+import org.bukkit.generator.WorldInfo;
 
 import java.util.SplittableRandom;
 
 /**
  * Adds sparse hanging formations beneath floating islands so the realm remains
- * visually interesting from below without adding a second terrain pass.
+ * visually interesting from below without force-loading neighboring chunks.
  */
 public final class FaeUndersideGenerator {
 
     private static final long UNDERSIDE_SALT = 0x082EFA98EC4E6C89L;
 
-    public void generate(ChunkGenerator.ChunkData data,
-                         long seed,
+    public void populate(WorldInfo info,
                          int chunkX,
                          int chunkZ,
+                         LimitedRegion region,
                          FaeGeneratorSettings settings) {
         SplittableRandom random = new SplittableRandom(
-            mixSeed(seed ^ UNDERSIDE_SALT, chunkX, chunkZ));
-        int searchFloor = Math.max(data.getMinHeight(), settings.cloudLevel() + 12);
+            mixSeed(info.getSeed() ^ UNDERSIDE_SALT, chunkX, chunkZ));
+        int searchFloor = Math.max(info.getMinHeight(), settings.cloudLevel() + 12);
+        int baseX = chunkX << 4;
+        int baseZ = chunkZ << 4;
 
         int attempts = 5 + random.nextInt(4);
         for (int attempt = 0; attempt < attempts; attempt++) {
-            int localX = 2 + random.nextInt(12);
-            int localZ = 2 + random.nextInt(12);
-            int bottomY = findLowestSolid(data, localX, localZ, searchFloor);
-            if (bottomY < searchFloor || bottomY - data.getMinHeight() < 10) {
+            int worldX = baseX + 2 + random.nextInt(12);
+            int worldZ = baseZ + 2 + random.nextInt(12);
+            int bottomY = findLowestSolid(info, region, worldX, worldZ, searchFloor);
+            if (bottomY < searchFloor || bottomY - info.getMinHeight() < 10) {
                 continue;
             }
 
-            int worldX = (chunkX << 4) + localX;
-            int worldZ = (chunkZ << 4) + localZ;
-            FaeRealmBiome biome = AetherChunkGenerator.biomeAt(seed, worldX, worldZ);
-
+            FaeRealmBiome biome = AetherChunkGenerator.biomeAt(info.getSeed(), worldX, worldZ);
             int length = 2 + random.nextInt(7);
             Material shaft = undersideMaterial(biome, random);
+            int placed = 0;
+
             for (int drop = 1; drop <= length; drop++) {
                 int y = bottomY - drop;
-                if (y <= data.getMinHeight() || !data.getType(localX, y, localZ).isAir()) {
+                if (y <= info.getMinHeight()
+                    || !region.isInRegion(worldX, y, worldZ)
+                    || !region.getType(worldX, y, worldZ).isAir()) {
                     break;
                 }
-                data.setBlock(localX, y, localZ, shaft);
+                region.setType(worldX, y, worldZ, shaft);
+                placed++;
 
-                // Longer formations start wider then taper into a single hanging point.
                 if (drop <= 2 && length >= 6) {
-                    setIfAir(data, localX + 1, y, localZ, shaft);
-                    setIfAir(data, localX, y, localZ + 1, shaft);
+                    setIfAir(region, worldX + 1, y, worldZ, shaft);
+                    setIfAir(region, worldX, y, worldZ + 1, shaft);
                 }
             }
 
-            int tipY = bottomY - length - 1;
-            if (tipY > data.getMinHeight() && data.getType(localX, tipY, localZ).isAir()) {
+            int tipY = bottomY - placed - 1;
+            if (placed > 0 && tipY > info.getMinHeight()
+                && region.isInRegion(worldX, tipY, worldZ)
+                && region.getType(worldX, tipY, worldZ).isAir()) {
                 Material tip = switch (biome) {
                     case CRYSTAL_WOODS -> Material.AMETHYST_BLOCK;
                     case MIST_GARDENS -> Material.SOUL_LANTERN;
@@ -60,19 +66,26 @@ public final class FaeUndersideGenerator {
                     case ANCIENT_FAE_FOREST -> Material.MOSSY_COBBLESTONE;
                     case SKY_HIGHLANDS -> Material.CALCITE;
                 };
-                data.setBlock(localX, tipY, localZ, tip);
+                region.setType(worldX, tipY, worldZ, tip);
             }
         }
     }
 
-    private int findLowestSolid(ChunkGenerator.ChunkData data, int x, int z, int startY) {
-        for (int y = startY; y < data.getMaxHeight(); y++) {
-            Material type = data.getType(x, y, z);
+    private int findLowestSolid(WorldInfo info,
+                                LimitedRegion region,
+                                int x,
+                                int z,
+                                int startY) {
+        for (int y = startY; y < info.getMaxHeight(); y++) {
+            if (!region.isInRegion(x, y, z)) {
+                continue;
+            }
+            Material type = region.getType(x, y, z);
             if (type.isSolid() && type != Material.WHITE_WOOL && type != Material.SNOW_BLOCK) {
                 return y;
             }
         }
-        return data.getMinHeight() - 1;
+        return info.getMinHeight() - 1;
     }
 
     private Material undersideMaterial(FaeRealmBiome biome, SplittableRandom random) {
@@ -85,13 +98,9 @@ public final class FaeUndersideGenerator {
         };
     }
 
-    private void setIfAir(ChunkGenerator.ChunkData data, int x, int y, int z, Material material) {
-        if (x < 0 || x >= 16 || z < 0 || z >= 16
-            || y < data.getMinHeight() || y >= data.getMaxHeight()) {
-            return;
-        }
-        if (data.getType(x, y, z).isAir()) {
-            data.setBlock(x, y, z, material);
+    private void setIfAir(LimitedRegion region, int x, int y, int z, Material material) {
+        if (region.isInRegion(x, y, z) && region.getType(x, y, z).isAir()) {
+            region.setType(x, y, z, material);
         }
     }
 
