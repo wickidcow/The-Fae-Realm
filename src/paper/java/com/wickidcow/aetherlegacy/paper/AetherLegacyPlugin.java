@@ -30,7 +30,7 @@ public final class AetherLegacyPlugin extends JavaPlugin {
         aetherWorld = loadAetherWorld();
 
         if (aetherWorld == null) {
-            getLogger().severe("Unable to create or load the Aether world. Disabling plugin.");
+            getLogger().severe("Unable to create or load the Fae Realm. Disabling plugin.");
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
@@ -55,7 +55,8 @@ public final class AetherLegacyPlugin extends JavaPlugin {
             if (args.length > 0 && args[0].equalsIgnoreCase("info")) {
                 player.sendMessage(Component.text("Aether Legacy for Paper ", NamedTextColor.GOLD)
                     .append(Component.text(getPluginMeta().getVersion(), NamedTextColor.YELLOW)));
-                player.sendMessage(Component.text("World: " + aetherWorld.getName(), NamedTextColor.GRAY));
+                player.sendMessage(Component.text("Realm: " + getRealmDisplayName(), NamedTextColor.LIGHT_PURPLE));
+                player.sendMessage(Component.text("World folder: " + aetherWorld.getName(), NamedTextColor.GRAY));
                 player.sendMessage(Component.text("Paper target: 26.2 / Java 25", NamedTextColor.GRAY));
                 return true;
             }
@@ -76,11 +77,11 @@ public final class AetherLegacyPlugin extends JavaPlugin {
         });
 
         getLogger().info("Aether Legacy for Paper " + getPluginMeta().getVersion() + " enabled on " + Bukkit.getMinecraftVersion());
-        getLogger().info("Paper port foundation active: custom floating-island world, Glowstone-water portals, and /aether travel.");
+        getLogger().info(getRealmDisplayName() + " active: custom floating islands, Glowstone-water portals, and /aether travel.");
     }
 
     private World loadAetherWorld() {
-        String worldName = getConfig().getString("world.name", "aether");
+        String worldName = getConfig().getString("world.name", "fae_realm");
         World existing = Bukkit.getWorld(worldName);
         if (existing != null) {
             return existing;
@@ -124,7 +125,11 @@ public final class AetherLegacyPlugin extends JavaPlugin {
     }
 
     public @NotNull World getAetherWorld() {
-        return Objects.requireNonNull(aetherWorld, "Aether world is not loaded");
+        return Objects.requireNonNull(aetherWorld, "Fae Realm is not loaded");
+    }
+
+    public @NotNull String getRealmDisplayName() {
+        return getConfig().getString("world.display-name", "Fae Realm");
     }
 
     public @NotNull Location getAetherArrivalLocation() {
