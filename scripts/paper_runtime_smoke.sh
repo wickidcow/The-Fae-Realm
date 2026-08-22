@@ -9,13 +9,14 @@ EXPECTED_PLUGIN_VERSION="${FAE_REALM_SMOKE_VERSION:-$(sed -n "s/^version = '\([^
 USER_AGENT="${PAPER_DOWNLOAD_USER_AGENT:-The-Fae-Realm-CI/${EXPECTED_PLUGIN_VERSION} (https://github.com/wickidcow/The-Fae-Realm)}"
 STARTUP_TIMEOUT_SECONDS="${PAPER_SMOKE_STARTUP_TIMEOUT:-240}"
 SHUTDOWN_TIMEOUT_SECONDS="${PAPER_SMOKE_SHUTDOWN_TIMEOUT:-60}"
+REALM_METADATA=""
 
 if [[ -z "$EXPECTED_PLUGIN_VERSION" ]]; then
     echo "Could not resolve The Fae Realm plugin version." >&2
     exit 1
 fi
 
-for command in curl jq java; do
+for command in curl jq java find sha256sum; do
     if ! command -v "$command" >/dev/null 2>&1; then
         echo "Required command is unavailable: $command" >&2
         exit 1
@@ -84,19 +85,36 @@ stop_process() {
     fi
 }
 
+resolve_realm_metadata() {
+    find "$WORK_DIR" -type f -name 'fae-realm-generator.yml' -print -quit
+}
+
 assert_realm_files() {
     local label="$1"
-    if [[ ! -d "$WORK_DIR/fae_realm" ]]; then
-        echo "Paper runtime smoke ${label}: fae_realm world folder was not created." >&2
+    REALM_METADATA="$(resolve_realm_metadata)"
+    if [[ -z "$REALM_METADATA" || ! -s "$REALM_METADATA" ]]; then
+        echo "Paper runtime smoke ${label}: Fae Realm generator metadata was not created." >&2
+        echo "World/dimension directories observed:" >&2
+        find "$WORK_DIR" -maxdepth 6 -type d \( -name 'fae_realm' -o -path '*/dimensions/*' \) -print >&2 || true
         return 1
     fi
-    if [[ ! -s "$WORK_DIR/fae_realm/fae-realm-generator.yml" ]]; then
-        echo "Paper runtime smoke ${label}: generator metadata was not created." >&2
+
+    local realm_dir
+    realm_dir="$(dirname "$REALM_METADATA")"
+    if [[ "$(basename "$realm_dir")" != "fae_realm" ]]; then
+        echo "Paper runtime smoke ${label}: metadata exists but is not inside a fae_realm dimension folder: $REALM_METADATA" >&2
         return 1
     fi
-    if ! grep -Fq 'current-generator-version: 5' "$WORK_DIR/fae_realm/fae-realm-generator.yml"; then
+
+    if ! grep -Fq 'current-generator-version: 5' "$REALM_METADATA"; then
         echo "Paper runtime smoke ${label}: generator metadata does not report v5." >&2
-        cat "$WORK_DIR/fae_realm/fae-realm-generator.yml" >&2 || true
+        cat "$REALM_METADATA" >&2 || true
+        return 1
+    fi
+
+    if [[ ! -d "$realm_dir/region" ]]; then
+        echo "Paper runtime smoke ${label}: Fae Realm region storage was not created at $realm_dir." >&2
+        find "$realm_dir" -maxdepth 2 -type f -print >&2 || true
         return 1
     fi
 }
@@ -179,12 +197,19 @@ run_cycle() {
 }
 
 run_cycle "first"
-FIRST_METADATA_HASH="$(sha256sum "$WORK_DIR/fae_realm/fae-realm-generator.yml" | awk '{print $1}')"
+FIRST_METADATA_HASH="$(sha256sum "$REALM_METADATA" | awk '{print $1}')"
+FIRST_REALM_PATH="${REALM_METADATA#"$WORK_DIR"/}"
 run_cycle "second"
-SECOND_METADATA_HASH="$(sha256sum "$WORK_DIR/fae_realm/fae-realm-generator.yml" | awk '{print $1}')"
+SECOND_METADATA_HASH="$(sha256sum "$REALM_METADATA" | awk '{print $1}')"
+SECOND_REALM_PATH="${REALM_METADATA#"$WORK_DIR"/}"
 
 if [[ -z "$FIRST_METADATA_HASH" || -z "$SECOND_METADATA_HASH" ]]; then
     echo "Could not hash persisted generator metadata." >&2
+    exit 1
+fi
+
+if [[ "$FIRST_REALM_PATH" != "$SECOND_REALM_PATH" ]]; then
+    echo "Fae Realm storage moved between boot cycles: $FIRST_REALM_PATH -> $SECOND_REALM_PATH" >&2
     exit 1
 fi
 
@@ -194,7 +219,8 @@ The Fae Realm: ${EXPECTED_PLUGIN_VERSION}
 Minecraft: ${MC_VERSION}
 Paper stable build: ${PAPER_BUILD}
 Cycles: 2
-Fae Realm world created: yes
+Fae Realm dimension created: yes
+Fae Realm storage: ${SECOND_REALM_PATH}
 Generator metadata present: yes
 Generator version: 5
 Second boot loaded persisted realm: yes
