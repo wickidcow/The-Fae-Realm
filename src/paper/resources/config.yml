@@ -21,10 +21,24 @@ portal:
   cooldown-seconds: 3
 
 worldgen:
-  version: 4
+  version: 5
+
+  # balanced | ethereal | lush | wild
+  # Presets provide sensible terrain personalities. The values below can override
+  # the preset defaults individually.
+  preset: balanced
 
   # 1.0 is the intended default. Valid range is clamped to 0.25 - 1.75.
   island-density: 1.0
+
+  # Vertical relief multiplier. Valid range: 0.50 - 1.80.
+  vertical-scale: 1.0
+
+  # Higher values produce more internal island caverns. Valid range: 0.20 - 1.80.
+  cave-density: 1.0
+
+  # Decorative cloud shelf Y level. Valid range is clamped to 48 - 120.
+  cloud-level: 74
 
   # Independent generator layers. Changing these affects newly generated chunks.
   clouds: true
