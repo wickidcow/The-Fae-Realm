@@ -1,0 +1,11 @@
+world:
+  name: aether
+  seed: 0
+  spawn-y: 136
+
+portal:
+  enabled: true
+  cooldown-seconds: 3
+
+messages:
+  prefix: '<gold>[Aether Legacy]</gold> '
