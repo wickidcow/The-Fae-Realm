@@ -28,6 +28,16 @@ public final class AetherChunkGenerator extends ChunkGenerator {
     private static final int MIN_ISLAND_Y = 92;
     private static final int MAX_ISLAND_Y = 176;
 
+    private final FaeGeneratorSettings settings;
+
+    public AetherChunkGenerator() {
+        this(FaeGeneratorSettings.defaults());
+    }
+
+    public AetherChunkGenerator(@NotNull FaeGeneratorSettings settings) {
+        this.settings = settings;
+    }
+
     @Override
     public void generateNoise(@NotNull WorldInfo worldInfo,
                               @NotNull Random random,
@@ -45,7 +55,9 @@ public final class AetherChunkGenerator extends ChunkGenerator {
             carveIsland(chunkData, seed, island, minX, minZ);
         }
 
-        generateCloudShelf(chunkData, seed, minX, minZ);
+        if (settings.clouds()) {
+            generateCloudShelf(chunkData, seed, minX, minZ);
+        }
     }
 
     @Override
@@ -82,7 +94,9 @@ public final class AetherChunkGenerator extends ChunkGenerator {
                     }
                 }
 
-                placeSurfaceDetails(chunkData, seed, biome, worldX, top, worldZ, localX, localZ);
+                if (settings.decorations()) {
+                    placeSurfaceDetails(chunkData, seed, biome, worldX, top, worldZ, localX, localZ);
+                }
             }
         }
     }
@@ -98,7 +112,7 @@ public final class AetherChunkGenerator extends ChunkGenerator {
 
     @Override
     public @NotNull List<BlockPopulator> getDefaultPopulators(@NotNull World world) {
-        return List.of(new FaeRealmPopulator());
+        return List.of(new FaeRealmPopulator(settings));
     }
 
     @Override
@@ -117,6 +131,8 @@ public final class AetherChunkGenerator extends ChunkGenerator {
         int maxCellX = Math.floorDiv(maxX + MAX_RADIUS, CELL_SIZE);
         int minCellZ = Math.floorDiv(minZ - MAX_RADIUS, CELL_SIZE);
         int maxCellZ = Math.floorDiv(maxZ + MAX_RADIUS, CELL_SIZE);
+        double islandChance = Math.max(0.20, Math.min(0.98, 0.86 * settings.islandDensity()));
+        double satelliteChance = Math.max(0.08, Math.min(0.70, 0.34 * settings.islandDensity()));
 
         for (int cellX = minCellX; cellX <= maxCellX; cellX++) {
             for (int cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) {
@@ -125,7 +141,7 @@ public final class AetherChunkGenerator extends ChunkGenerator {
                 }
 
                 SplittableRandom cellRandom = new SplittableRandom(mixSeed(worldSeed, cellX, cellZ));
-                if (cellRandom.nextDouble() > 0.86) {
+                if (cellRandom.nextDouble() > islandChance) {
                     continue;
                 }
 
@@ -140,7 +156,7 @@ public final class AetherChunkGenerator extends ChunkGenerator {
                     islands.add(new Island(centerX, centerZ, centerY, radius, thickness, warp));
                 }
 
-                if (cellRandom.nextDouble() < 0.34) {
+                if (cellRandom.nextDouble() < satelliteChance) {
                     int satelliteX = centerX + cellRandom.nextInt(-72, 73);
                     int satelliteZ = centerZ + cellRandom.nextInt(-72, 73);
                     int satelliteY = centerY + cellRandom.nextInt(-18, 19);
