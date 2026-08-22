@@ -6,6 +6,7 @@ import com.wickidcow.aetherlegacy.paper.portal.AetherPortalListener;
 import com.wickidcow.aetherlegacy.paper.world.AetherChunkGenerator;
 import com.wickidcow.aetherlegacy.paper.world.FaeGeneratorSettings;
 import com.wickidcow.aetherlegacy.paper.world.FaeVoidListener;
+import com.wickidcow.aetherlegacy.paper.world.FaeWorldMetadata;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -31,6 +32,7 @@ import java.util.Objects;
  */
 public final class AetherLegacyPlugin extends JavaPlugin {
 
+    private FaeGeneratorSettings generatorSettings;
     private AetherChunkGenerator generator;
     private AetherPortalListener portalListener;
     private BetterStructuresIntegration betterStructuresIntegration;
@@ -39,7 +41,8 @@ public final class AetherLegacyPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         saveDefaultConfig();
-        generator = new AetherChunkGenerator(FaeGeneratorSettings.from(getConfig()));
+        generatorSettings = FaeGeneratorSettings.from(getConfig());
+        generator = new AetherChunkGenerator(generatorSettings);
         aetherWorld = loadAetherWorld();
 
         if (aetherWorld == null) {
@@ -50,6 +53,7 @@ public final class AetherLegacyPlugin extends JavaPlugin {
 
         configureRealm(aetherWorld);
         prepareArrivalArea(aetherWorld);
+        FaeWorldMetadata.record(this, aetherWorld, generatorSettings);
 
         portalListener = new AetherPortalListener(this);
         getServer().getPluginManager().registerEvents(portalListener, this);
@@ -76,9 +80,30 @@ public final class AetherLegacyPlugin extends JavaPlugin {
                     .append(Component.text(getPluginMeta().getVersion(), NamedTextColor.AQUA)));
                 player.sendMessage(Component.text("Realm: " + getRealmDisplayName(), NamedTextColor.LIGHT_PURPLE));
                 player.sendMessage(Component.text("World folder: " + aetherWorld.getName(), NamedTextColor.GRAY));
-                player.sendMessage(Component.text("Generator: v" + getConfig().getInt("worldgen.version", 4), NamedTextColor.GRAY));
+                player.sendMessage(Component.text("Seed: " + aetherWorld.getSeed(), NamedTextColor.GRAY));
+                player.sendMessage(Component.text(
+                    "Generator: v" + getConfig().getInt("worldgen.version", 5)
+                        + " / " + generatorSettings.preset().name().toLowerCase(),
+                    NamedTextColor.GRAY));
+                player.sendMessage(Component.text(
+                    "Terrain: density " + generatorSettings.islandDensity()
+                        + ", vertical " + generatorSettings.verticalScale()
+                        + ", caves " + generatorSettings.caveDensity(),
+                    NamedTextColor.GRAY));
                 player.sendMessage(Component.text("BetterStructures: " + betterStructuresIntegration.status(), NamedTextColor.GRAY));
                 player.sendMessage(Component.text("Paper target: 26.2 / Java 25", NamedTextColor.GRAY));
+                return true;
+            }
+
+            if (args.length > 0 && args[0].equalsIgnoreCase("biome")) {
+                if (!player.getWorld().equals(aetherWorld)) {
+                    player.sendMessage(Component.text("Enter the Fae Realm to inspect its region.", NamedTextColor.YELLOW));
+                    return true;
+                }
+                var biome = AetherChunkGenerator.biomeAt(
+                    aetherWorld.getSeed(), player.getBlockX(), player.getBlockZ());
+                player.sendMessage(Component.text(
+                    "Fae region: " + prettyName(biome.name()), NamedTextColor.AQUA));
                 return true;
             }
 
@@ -99,7 +124,10 @@ public final class AetherLegacyPlugin extends JavaPlugin {
         });
 
         getLogger().info("The Fae Realm " + getPluginMeta().getVersion() + " enabled on Minecraft " + Bukkit.getMinecraftVersion());
-        getLogger().info(getRealmDisplayName() + " active: floating continents, regional biomes, resources, Fae structures, vaults, portals, and /fae travel.");
+        getLogger().info(getRealmDisplayName() + " active: generator v"
+            + getConfig().getInt("worldgen.version", 5) + " / "
+            + generatorSettings.preset().name().toLowerCase()
+            + ", floating continents, regional biomes, resources, Fae structures, vaults, portals, and /fae travel.");
     }
 
     private World loadAetherWorld() {
@@ -154,6 +182,18 @@ public final class AetherLegacyPlugin extends JavaPlugin {
         }
 
         world.setSpawnLocation(new Location(world, 0.5, y + 1, 3.5));
+    }
+
+    private String prettyName(String enumName) {
+        String[] parts = enumName.toLowerCase().split("_");
+        StringBuilder builder = new StringBuilder();
+        for (String part : parts) {
+            if (!builder.isEmpty()) {
+                builder.append(' ');
+            }
+            builder.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1));
+        }
+        return builder.toString();
     }
 
     public @NotNull World getAetherWorld() {
