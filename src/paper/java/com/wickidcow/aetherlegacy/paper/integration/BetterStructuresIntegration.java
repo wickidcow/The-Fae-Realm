@@ -14,38 +14,55 @@ import java.lang.reflect.Method;
 /**
  * Optional runtime bridge for BetterStructures.
  *
- * <p>No BetterStructures classes are linked at compile time. Newer compatible builds can
- * disable BetterStructures scanning for the Fae Realm up front; older builds fall back to
- * a cancellable BuildPlaceEvent guard so generic structure packs still cannot overwrite
- * the realm's own structure identity.</p>
+ * <p>No BetterStructures classes are linked at compile time. Compatible builds can
+ * exclude the configured Fae world by name before WorldCreator begins generating its
+ * first chunks. Older builds fall back to a cancellable BuildPlaceEvent guard.</p>
  */
 public final class BetterStructuresIntegration {
 
     private final AetherLegacyPlugin plugin;
+    private Plugin betterStructures;
     private boolean detected;
     private boolean earlyWorldExclusion;
     private boolean guardRegistered;
 
     public BetterStructuresIntegration(AetherLegacyPlugin plugin) {
         this.plugin = plugin;
+        refreshDetection();
     }
 
+    /**
+     * Called before the Fae Realm exists so compatible BetterStructures builds can
+     * reject the world name before any spawn chunks are generated.
+     */
+    public void prepareWorldExclusion(String worldName) {
+        refreshDetection();
+        if (!detected || allowGenericStructures()) {
+            return;
+        }
+
+        earlyWorldExclusion = trySetWorldValidity(String.class, worldName, false);
+        if (earlyWorldExclusion) {
+            plugin.getLogger().info("BetterStructures detected; pre-excluded world '" + worldName
+                + "' before Fae Realm creation.");
+        }
+    }
+
+    /** Finalizes compatibility after the Fae world is available. */
     public void enable() {
-        Plugin betterStructures = plugin.getServer().getPluginManager().getPlugin("BetterStructures");
-        detected = betterStructures != null && betterStructures.isEnabled();
+        refreshDetection();
         if (!detected) {
             return;
         }
 
-        boolean allowGeneric = plugin.getConfig().getBoolean(
-            "integrations.betterstructures.allow-generic-structures-in-fae-realm", false);
-
-        if (allowGeneric) {
+        if (allowGenericStructures()) {
             plugin.getLogger().info("BetterStructures detected; generic BetterStructures generation is allowed in Fae Realm.");
             return;
         }
 
-        earlyWorldExclusion = tryExcludeWorldBeforeScans(betterStructures);
+        if (!earlyWorldExclusion) {
+            earlyWorldExclusion = trySetWorldValidity(World.class, plugin.getAetherWorld(), false);
+        }
         if (!earlyWorldExclusion) {
             registerPlacementGuard(betterStructures);
         }
@@ -57,28 +74,43 @@ public final class BetterStructuresIntegration {
         }
     }
 
-    private boolean tryExcludeWorldBeforeScans(Plugin betterStructures) {
+    private void refreshDetection() {
+        betterStructures = plugin.getServer().getPluginManager().getPlugin("BetterStructures");
+        detected = betterStructures != null && betterStructures.isEnabled();
+    }
+
+    private boolean allowGenericStructures() {
+        return plugin.getConfig().getBoolean(
+            "integrations.betterstructures.allow-generic-structures-in-fae-realm", false);
+    }
+
+    private boolean trySetWorldValidity(Class<?> worldArgumentType, Object worldArgument, boolean valid) {
+        if (betterStructures == null) {
+            return false;
+        }
         try {
             Class<?> validWorldsConfig = Class.forName(
                 "com.magmaguy.betterstructures.config.ValidWorldsConfig",
                 false,
                 betterStructures.getClass().getClassLoader());
-            Method setWorldValidity = validWorldsConfig.getMethod("setWorldValidity", World.class, boolean.class);
-            setWorldValidity.invoke(null, plugin.getAetherWorld(), false);
+            Method setWorldValidity = validWorldsConfig.getMethod(
+                "setWorldValidity", worldArgumentType, boolean.class);
+            setWorldValidity.invoke(null, worldArgument, valid);
             return true;
         } catch (ReflectiveOperationException | LinkageError ignored) {
-            // Older BetterStructures builds do not expose the integration API. The event
-            // guard below remains a safe compatibility fallback.
             return false;
         }
     }
 
-    private void registerPlacementGuard(Plugin betterStructures) {
+    private void registerPlacementGuard(Plugin betterStructuresPlugin) {
+        if (guardRegistered || betterStructuresPlugin == null) {
+            return;
+        }
         try {
             Class<?> rawEventClass = Class.forName(
                 "com.magmaguy.betterstructures.api.BuildPlaceEvent",
                 false,
-                betterStructures.getClass().getClassLoader());
+                betterStructuresPlugin.getClass().getClassLoader());
 
             if (!Event.class.isAssignableFrom(rawEventClass)) {
                 plugin.getLogger().warning("BetterStructures BuildPlaceEvent was found but is not a Bukkit Event; compatibility guard skipped.");
@@ -142,8 +174,7 @@ public final class BetterStructuresIntegration {
         if (!detected) {
             return "not detected";
         }
-        if (plugin.getConfig().getBoolean(
-            "integrations.betterstructures.allow-generic-structures-in-fae-realm", false)) {
+        if (allowGenericStructures()) {
             return "detected (generic Fae Realm structures allowed)";
         }
         if (earlyWorldExclusion) {
