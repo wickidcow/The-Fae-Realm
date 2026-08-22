@@ -17,7 +17,6 @@ import java.util.SplittableRandom;
  */
 public final class FaeStructurePopulator {
 
-    private static final int STRUCTURE_CELL_CHUNKS = 10;
     private static final long STRUCTURE_SALT = 0x6A09E667F3BCC909L;
     private final FaeDungeonGenerator dungeonGenerator = new FaeDungeonGenerator();
 
@@ -25,17 +24,20 @@ public final class FaeStructurePopulator {
                          @NotNull Random random,
                          int chunkX,
                          int chunkZ,
-                         @NotNull LimitedRegion region) {
+                         @NotNull LimitedRegion region,
+                         @NotNull FaeGeneratorSettings settings) {
         if (Math.abs(chunkX) <= 4 && Math.abs(chunkZ) <= 4) {
             return; // Keep the arrival area quiet and uncluttered.
         }
 
-        int cellX = Math.floorDiv(chunkX, STRUCTURE_CELL_CHUNKS);
-        int cellZ = Math.floorDiv(chunkZ, STRUCTURE_CELL_CHUNKS);
-        SplittableRandom cellRandom = new SplittableRandom(mixSeed(worldInfo.getSeed() ^ STRUCTURE_SALT, cellX, cellZ));
+        int spacing = settings.structureSpacingChunks();
+        int cellX = Math.floorDiv(chunkX, spacing);
+        int cellZ = Math.floorDiv(chunkZ, spacing);
+        SplittableRandom cellRandom = new SplittableRandom(
+            mixSeed(worldInfo.getSeed() ^ STRUCTURE_SALT, cellX, cellZ));
 
-        int anchorChunkX = cellX * STRUCTURE_CELL_CHUNKS + cellRandom.nextInt(1, STRUCTURE_CELL_CHUNKS - 1);
-        int anchorChunkZ = cellZ * STRUCTURE_CELL_CHUNKS + cellRandom.nextInt(1, STRUCTURE_CELL_CHUNKS - 1);
+        int anchorChunkX = cellX * spacing + cellRandom.nextInt(1, spacing - 1);
+        int anchorChunkZ = cellZ * spacing + cellRandom.nextInt(1, spacing - 1);
         if (chunkX != anchorChunkX || chunkZ != anchorChunkZ) {
             return;
         }
@@ -52,8 +54,8 @@ public final class FaeStructurePopulator {
             return;
         }
 
-        int roll = cellRandom.nextInt(100);
-        if (roll < 12 && y - 18 > worldInfo.getMinHeight()) {
+        if (cellRandom.nextDouble() < settings.dungeonChance()
+            && y - 18 > worldInfo.getMinHeight()) {
             int entranceY = y + 1;
             placeDungeonGate(region, x, entranceY, z, biome);
             dungeonGenerator.place(
