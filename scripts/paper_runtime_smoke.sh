@@ -156,9 +156,15 @@ run_cycle() {
         return 1
     fi
 
-    # Give post-world startup and initial Fae Realm chunk persistence a moment to settle.
     sleep 3
-    assert_realm_files "$label"
+    if ! assert_realm_files "$label"; then
+        stop_process "$server_pid" 3
+        wait "$server_pid" >/dev/null 2>&1 || true
+        exec 3>&-
+        cat "$console_log" >&2 || true
+        return 1
+    fi
+
     stop_process "$server_pid" 3
 
     local server_status=0
