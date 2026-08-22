@@ -80,15 +80,23 @@ jobs:
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
           fi
-
-      - name: Upload runtime smoke evidence
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: fae-realm-paper-runtime-smoke
-          path: |
-            build/paper-runtime-smoke/*.console.log
-            build/paper-runtime-smoke/paper-build.txt
-            build/paper-runtime-smoke/smoke-result.txt
-            build/paper-runtime-smoke/fae_realm/fae-realm-generator.yml
-          if-no-files-found: warn
+          if [[ -f build/paper-runtime-smoke/first.console.log ]]; then
+            {
+              echo
+              echo '### First boot tail'
+              echo
+              echo '```text'
+              tail -n 80 build/paper-runtime-smoke/first.console.log
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [[ -f build/paper-runtime-smoke/second.console.log ]]; then
+            {
+              echo
+              echo '### Second boot tail'
+              echo
+              echo '```text'
+              tail -n 80 build/paper-runtime-smoke/second.console.log
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
