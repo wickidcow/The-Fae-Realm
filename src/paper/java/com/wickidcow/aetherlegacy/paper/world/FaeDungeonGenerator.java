@@ -1,8 +1,13 @@
 package com.wickidcow.aetherlegacy.paper.world;
 
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
+import org.bukkit.block.Barrel;
+import org.bukkit.block.BlockState;
 import org.bukkit.generator.LimitedRegion;
+import org.bukkit.persistence.PersistentDataType;
 
+import java.util.Objects;
 import java.util.SplittableRandom;
 
 /**
@@ -10,13 +15,13 @@ import java.util.SplittableRandom;
  *
  * <p>The dungeon is deliberately vertical and remains within the gate's own chunk.
  * This lets it run safely from Paper's LimitedRegion world-generation phase without
- * force-loading neighboring chunks. The first-generation vault contains an entrance
- * stair, a themed main hall, a lower relic chamber, and deterministic loot placeholders
- * that can be populated by the progression layer later.</p>
+ * force-loading neighboring chunks.</p>
  */
 public final class FaeDungeonGenerator {
 
     private static final long DUNGEON_SALT = 0x243F6A8885A308D3L;
+    private static final NamespacedKey GENERATED_BARREL_KEY = Objects.requireNonNull(
+        NamespacedKey.fromString("thefaerealm:generated_vault_barrel"));
 
     public void place(LimitedRegion region,
                       int x,
@@ -67,7 +72,6 @@ public final class FaeDungeonGenerator {
             }
         }
 
-        // Open the south wall where the surface staircase enters.
         for (int dx = -1; dx <= 1; dx++) {
             for (int dy = 1; dy <= 3; dy++) {
                 set(region, x + dx, floorY + dy, z + radius, Material.AIR);
@@ -93,7 +97,6 @@ public final class FaeDungeonGenerator {
                 }
             }
 
-            // Side rails make the descending tunnel readable without requiring stair block data.
             set(region, x - 2, floorY + 1, stepZ, palette.primary());
             set(region, x + 2, floorY + 1, stepZ, palette.primary());
             if ((step & 1) == 0) {
@@ -102,7 +105,6 @@ public final class FaeDungeonGenerator {
             }
         }
 
-        // Ensure the last step meets the main hall floor exactly.
         set(region, x, mainFloor, gateZ + 6, palette.secondary());
     }
 
@@ -148,7 +150,6 @@ public final class FaeDungeonGenerator {
             {-2, 1}, {-2, 0}, {-2, -1}
         };
 
-        // Open the central shaft through the main floor and the gap above the lower vault.
         for (int dy = lowerFloor + 1; dy <= mainFloor + 3; dy++) {
             for (int dx = -2; dx <= 2; dx++) {
                 for (int dz = -2; dz <= 2; dz++) {
@@ -168,7 +169,6 @@ public final class FaeDungeonGenerator {
             set(region, px, stepY + 2, pz, Material.AIR);
         }
 
-        // Central column visually anchors the staircase and provides lighting.
         for (int y = lowerFloor + 1; y <= mainFloor - 1; y++) {
             set(region, x, y, z, (y & 3) == 0 ? palette.light() : palette.deep());
         }
@@ -202,7 +202,9 @@ public final class FaeDungeonGenerator {
             }
             case FAERIE_CROSSING -> {
                 for (int offset = -4; offset <= 4; offset++) {
-                    if (Math.abs(offset) <= 1) continue;
+                    if (Math.abs(offset) <= 1) {
+                        continue;
+                    }
                     set(region, x + offset, floorY + 1, z, Material.IRON_BARS);
                     set(region, x, floorY + 1, z + offset, Material.IRON_BARS);
                 }
@@ -210,8 +212,6 @@ public final class FaeDungeonGenerator {
             }
         }
 
-        // Two deterministic side caches. These are deliberately empty for now;
-        // the progression/loot layer will populate them without changing terrain generation.
         int cacheZ = random.nextBoolean() ? z - 3 : z + 3;
         set(region, x - 4, floorY + 1, cacheZ, Material.BARREL);
         set(region, x + 4, floorY + 1, cacheZ, Material.BARREL);
@@ -229,7 +229,6 @@ public final class FaeDungeonGenerator {
             }
         }
 
-        // Relic dais and four loot-ready caches.
         for (int dx = -1; dx <= 1; dx++) {
             for (int dz = -1; dz <= 1; dz++) {
                 set(region, x + dx, floorY + 1, z + dz,
@@ -269,8 +268,20 @@ public final class FaeDungeonGenerator {
     }
 
     private void set(LimitedRegion region, int x, int y, int z, Material material) {
-        if (region.isInRegion(x, y, z)) {
-            region.setType(x, y, z, material);
+        if (!region.isInRegion(x, y, z)) {
+            return;
+        }
+
+        region.setType(x, y, z, material);
+        if (material != Material.BARREL) {
+            return;
+        }
+
+        BlockState state = region.getBlockState(x, y, z);
+        if (state instanceof Barrel barrel) {
+            barrel.getPersistentDataContainer().set(
+                GENERATED_BARREL_KEY, PersistentDataType.BYTE, (byte) 1);
+            region.setBlockState(x, y, z, barrel);
         }
     }
 
