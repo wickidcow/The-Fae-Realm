@@ -21,24 +21,20 @@ import org.bukkit.persistence.PersistentDataType;
 
 import java.util.SplittableRandom;
 
-/**
- * Lazy deterministic loot for generated Fae Vault barrels.
- *
- * <p>Dungeon barrels are created during LimitedRegion generation and populated the
- * first time a player opens them. Player-placed barrels are explicitly tagged so
- * ordinary storage can never become a loot container.</p>
- */
+/** Lazy deterministic loot for explicitly tagged Fae Vault barrels. */
 public final class FaeDungeonLootListener implements Listener {
 
     private final AetherLegacyPlugin plugin;
     private final FaeItems faeItems;
     private final NamespacedKey playerPlacedKey;
+    private final NamespacedKey generatedVaultBarrelKey;
     private final NamespacedKey generatedLootKey;
 
     public FaeDungeonLootListener(AetherLegacyPlugin plugin) {
         this.plugin = plugin;
         this.faeItems = new FaeItems(plugin);
         this.playerPlacedKey = new NamespacedKey(plugin, "player_placed_barrel");
+        this.generatedVaultBarrelKey = new NamespacedKey(plugin, "generated_vault_barrel");
         this.generatedLootKey = new NamespacedKey(plugin, "generated_dungeon_loot");
     }
 
@@ -51,6 +47,7 @@ public final class FaeDungeonLootListener implements Listener {
         }
 
         barrel.getPersistentDataContainer().set(playerPlacedKey, PersistentDataType.BYTE, (byte) 1);
+        barrel.getPersistentDataContainer().remove(generatedVaultBarrelKey);
         barrel.update(true, false);
     }
 
@@ -62,6 +59,7 @@ public final class FaeDungeonLootListener implements Listener {
         }
 
         if (barrel.getPersistentDataContainer().has(playerPlacedKey, PersistentDataType.BYTE)
+            || !barrel.getPersistentDataContainer().has(generatedVaultBarrelKey, PersistentDataType.BYTE)
             || barrel.getPersistentDataContainer().has(generatedLootKey, PersistentDataType.BYTE)) {
             return;
         }
@@ -118,13 +116,15 @@ public final class FaeDungeonLootListener implements Listener {
             addRandomSlot(inventory, faeItems.vaultKey(), random);
         }
         if (random.nextInt(6) == 0) {
-            addRandomSlot(inventory, namedRelic(Material.ECHO_SHARD, "Fae Echo", NamedTextColor.LIGHT_PURPLE), random);
+            addRandomSlot(inventory,
+                namedRelic(Material.ECHO_SHARD, "Fae Echo", NamedTextColor.LIGHT_PURPLE), random);
         }
         if (random.nextInt(12) == 0) {
             addRandomSlot(inventory, new ItemStack(Material.DIAMOND, 1 + random.nextInt(2)), random);
         }
         if (random.nextInt(48) == 0) {
-            addRandomSlot(inventory, namedRelic(Material.ENCHANTED_GOLDEN_APPLE, "Gift of the Veil", NamedTextColor.GOLD), random);
+            addRandomSlot(inventory,
+                namedRelic(Material.ENCHANTED_GOLDEN_APPLE, "Gift of the Veil", NamedTextColor.GOLD), random);
         }
     }
 
