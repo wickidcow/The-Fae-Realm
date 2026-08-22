@@ -1,4 +1,4 @@
-name: Build Aether Legacy for Paper
+name: Build The Fae Realm
 
 on:
   push:
@@ -35,7 +35,9 @@ jobs:
 
       - name: Verify JAR contents
         run: |
-          test -f build/libs/AetherLegacyPaper-0.1.0-SNAPSHOT.jar
-          jar tf build/libs/AetherLegacyPaper-0.1.0-SNAPSHOT.jar | grep -q 'plugin.yml'
-          jar tf build/libs/AetherLegacyPaper-0.1.0-SNAPSHOT.jar | grep -q 'com/wickidcow/aetherlegacy/paper/AetherLegacyPlugin.class'
-          jar tf build/libs/AetherLegacyPaper-0.1.0-SNAPSHOT.jar | grep -q 'com/wickidcow/aetherlegacy/paper/world/FaeRealmPopulator.class'
+          test -f build/libs/TheFaeRealm-0.1.0-SNAPSHOT.jar
+          jar tf build/libs/TheFaeRealm-0.1.0-SNAPSHOT.jar | grep -q 'plugin.yml'
+          jar tf build/libs/TheFaeRealm-0.1.0-SNAPSHOT.jar | grep -q 'com/wickidcow/aetherlegacy/paper/AetherLegacyPlugin.class'
+          jar tf build/libs/TheFaeRealm-0.1.0-SNAPSHOT.jar | grep -q 'com/wickidcow/aetherlegacy/paper/world/FaeRealmPopulator.class'
+          jar tf build/libs/TheFaeRealm-0.1.0-SNAPSHOT.jar | grep -q 'com/wickidcow/aetherlegacy/paper/world/FaeDungeonGenerator.class'
+          jar tf build/libs/TheFaeRealm-0.1.0-SNAPSHOT.jar | grep -q 'com/wickidcow/aetherlegacy/paper/loot/FaeDungeonLootListener.class'
