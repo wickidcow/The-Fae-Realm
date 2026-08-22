@@ -17,6 +17,7 @@ public final class FaeRealmPopulator extends BlockPopulator {
     private static final FaeStructurePopulator STRUCTURES = new FaeStructurePopulator();
     private static final FaeResourcePopulator RESOURCES = new FaeResourcePopulator();
     private static final FaeFeaturePopulator FEATURES = new FaeFeaturePopulator();
+    private static final FaeUndersideGenerator UNDERSIDE = new FaeUndersideGenerator();
 
     private final FaeGeneratorSettings settings;
 
@@ -42,6 +43,8 @@ public final class FaeRealmPopulator extends BlockPopulator {
         }
 
         if (settings.decorations()) {
+            UNDERSIDE.populate(worldInfo, chunkX, chunkZ, region, settings);
+
             int treeAttempts = 1 + random.nextInt(3);
             for (int i = 0; i < treeAttempts; i++) {
                 int x = baseX + random.nextInt(16);
