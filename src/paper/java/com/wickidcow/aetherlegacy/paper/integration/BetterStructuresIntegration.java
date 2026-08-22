@@ -11,13 +11,7 @@ import org.bukkit.plugin.Plugin;
 
 import java.lang.reflect.Method;
 
-/**
- * Optional runtime bridge for BetterStructures.
- *
- * <p>No BetterStructures classes are linked at compile time. Compatible builds can
- * exclude the configured Fae world by name before WorldCreator begins generating its
- * first chunks. Older builds fall back to a cancellable BuildPlaceEvent guard.</p>
- */
+/** Optional runtime bridge for BetterStructures. */
 public final class BetterStructuresIntegration {
 
     private final AetherLegacyPlugin plugin;
@@ -33,11 +27,18 @@ public final class BetterStructuresIntegration {
 
     /**
      * Called before the Fae Realm exists so compatible BetterStructures builds can
-     * reject the world name before any spawn chunks are generated.
+     * set world validity before any spawn chunks are generated.
      */
     public void prepareWorldExclusion(String worldName) {
         refreshDetection();
-        if (!detected || allowGenericStructures()) {
+        if (!detected) {
+            return;
+        }
+
+        if (allowGenericStructures()) {
+            // Reverse any exclusion persisted by an earlier Fae Realm configuration.
+            trySetWorldValidity(String.class, worldName, true);
+            earlyWorldExclusion = false;
             return;
         }
 
@@ -56,7 +57,9 @@ public final class BetterStructuresIntegration {
         }
 
         if (allowGenericStructures()) {
-            plugin.getLogger().info("BetterStructures detected; generic BetterStructures generation is allowed in Fae Realm.");
+            trySetWorldValidity(World.class, plugin.getAetherWorld(), true);
+            plugin.getLogger().info(
+                "BetterStructures detected; generic BetterStructures generation is allowed in Fae Realm.");
             return;
         }
 
@@ -68,9 +71,11 @@ public final class BetterStructuresIntegration {
         }
 
         if (earlyWorldExclusion) {
-            plugin.getLogger().info("BetterStructures detected; Fae Realm is excluded before BetterStructures chunk scans.");
+            plugin.getLogger().info(
+                "BetterStructures detected; Fae Realm is excluded before BetterStructures chunk scans.");
         } else if (guardRegistered) {
-            plugin.getLogger().info("BetterStructures detected; using placement guard fallback for Fae Realm.");
+            plugin.getLogger().info(
+                "BetterStructures detected; using placement guard fallback for Fae Realm.");
         }
     }
 
@@ -113,7 +118,8 @@ public final class BetterStructuresIntegration {
                 betterStructuresPlugin.getClass().getClassLoader());
 
             if (!Event.class.isAssignableFrom(rawEventClass)) {
-                plugin.getLogger().warning("BetterStructures BuildPlaceEvent was found but is not a Bukkit Event; compatibility guard skipped.");
+                plugin.getLogger().warning(
+                    "BetterStructures BuildPlaceEvent was found but is not a Bukkit Event; compatibility guard skipped.");
                 return;
             }
 
@@ -144,7 +150,8 @@ public final class BetterStructuresIntegration {
                             cancellable.setCancelled(true);
                         }
                     } catch (ReflectiveOperationException exception) {
-                        plugin.getLogger().fine("Could not inspect BetterStructures placement event: " + exception.getMessage());
+                        plugin.getLogger().fine(
+                            "Could not inspect BetterStructures placement event: " + exception.getMessage());
                     }
                 },
                 plugin,
@@ -153,8 +160,9 @@ public final class BetterStructuresIntegration {
 
             guardRegistered = true;
         } catch (ReflectiveOperationException | LinkageError exception) {
-            plugin.getLogger().warning("BetterStructures detected, but compatibility guard could not be registered: "
-                + exception.getMessage());
+            plugin.getLogger().warning(
+                "BetterStructures detected, but compatibility guard could not be registered: "
+                    + exception.getMessage());
         }
     }
 
