@@ -1,14 +1,18 @@
 package com.wickidcow.aetherlegacy.paper.portal;
 
 import com.wickidcow.aetherlegacy.paper.AetherLegacyPlugin;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerBucketEmptyEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
@@ -30,6 +34,34 @@ public final class AetherPortalListener implements Listener {
 
     public void rememberReturn(Player player, Location location) {
         returnLocations.put(player.getUniqueId(), location.clone());
+    }
+
+    /**
+     * Classic Aether-style activation: one water bucket used inside a complete
+     * Glowstone frame fills the entire 2x3 interior with water.
+     */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onWaterBucket(PlayerBucketEmptyEvent event) {
+        if (!plugin.getConfig().getBoolean("portal.enabled", true)
+            || !plugin.getConfig().getBoolean("portal.auto-activate", true)
+            || event.getBucket() != Material.WATER_BUCKET) {
+            return;
+        }
+
+        Block target = event.getBlock();
+        PortalFrame frame = findFrame(target);
+        if (frame == null) {
+            return;
+        }
+
+        // Run after the vanilla bucket placement so the complete interior wins.
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            frame.fillInterior();
+            frame.world().playSound(frame.center(), Sound.BLOCK_PORTAL_TRIGGER, 0.8f, 1.35f);
+            event.getPlayer().sendMessage(Component.text("The way to the ", NamedTextColor.LIGHT_PURPLE)
+                .append(Component.text(plugin.getRealmDisplayName(), NamedTextColor.AQUA))
+                .append(Component.text(" opens.", NamedTextColor.LIGHT_PURPLE)));
+        });
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -59,7 +91,7 @@ public final class AetherPortalListener implements Listener {
         }
 
         PortalFrame frame = findFrame(block);
-        if (frame == null) {
+        if (frame == null || !frame.hasWaterInterior()) {
             return;
         }
 
@@ -83,11 +115,11 @@ public final class AetherPortalListener implements Listener {
         returnLocations.remove(event.getPlayer().getUniqueId());
     }
 
-    private @Nullable PortalFrame findFrame(Block water) {
-        World world = water.getWorld();
-        int x = water.getX();
-        int y = water.getY();
-        int z = water.getZ();
+    private @Nullable PortalFrame findFrame(Block candidate) {
+        World world = candidate.getWorld();
+        int x = candidate.getX();
+        int y = candidate.getY();
+        int z = candidate.getZ();
 
         for (int bottomY = y - 3; bottomY <= y - 1; bottomY++) {
             for (int interiorMinX = x - 1; interiorMinX <= x; interiorMinX++) {
@@ -145,6 +177,40 @@ public final class AetherPortalListener implements Listener {
     }
 
     private record PortalFrame(World world, int horizontalBase, int bottomY, int plane, Orientation orientation) {
+        private void fillInterior() {
+            for (int y = bottomY + 1; y <= bottomY + 3; y++) {
+                if (orientation == Orientation.X) {
+                    world.getBlockAt(horizontalBase, y, plane).setType(Material.WATER, false);
+                    world.getBlockAt(horizontalBase + 1, y, plane).setType(Material.WATER, false);
+                } else {
+                    world.getBlockAt(horizontalBase, y, plane).setType(Material.WATER, false);
+                    world.getBlockAt(horizontalBase, y, plane + 1).setType(Material.WATER, false);
+                }
+            }
+        }
+
+        private boolean hasWaterInterior() {
+            for (int y = bottomY + 1; y <= bottomY + 3; y++) {
+                if (orientation == Orientation.X) {
+                    if (world.getBlockAt(horizontalBase, y, plane).getType() != Material.WATER
+                        || world.getBlockAt(horizontalBase + 1, y, plane).getType() != Material.WATER) {
+                        return false;
+                    }
+                } else if (world.getBlockAt(horizontalBase, y, plane).getType() != Material.WATER
+                    || world.getBlockAt(horizontalBase, y, plane + 1).getType() != Material.WATER) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private Location center() {
+            if (orientation == Orientation.X) {
+                return new Location(world, horizontalBase + 1.0, bottomY + 2.5, plane + 0.5);
+            }
+            return new Location(world, horizontalBase + 0.5, bottomY + 2.5, plane + 1.0);
+        }
+
         private Location safeExit() {
             if (orientation == Orientation.X) {
                 return new Location(world, horizontalBase + 1.0, bottomY + 1.0, plane + 2.5, 180.0f, 0.0f);

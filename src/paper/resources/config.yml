@@ -6,6 +6,7 @@ world:
 
 portal:
   enabled: true
+  auto-activate: true
   cooldown-seconds: 3
 
 worldgen:
