@@ -49,31 +49,31 @@ public record FaeGeneratorSettings(
         TerrainPreset preset = TerrainPreset.parse(config.getString("worldgen.preset", "balanced"));
 
         double density = clamp(
-            config.getDouble("worldgen.island-density", preset.islandDensity()),
+            numericOverride(config, "worldgen.island-density", preset.islandDensity()),
             0.25,
             1.75);
         double vertical = clamp(
-            config.getDouble("worldgen.vertical-scale", preset.verticalScale()),
+            numericOverride(config, "worldgen.vertical-scale", preset.verticalScale()),
             0.50,
             1.80);
         double caves = clamp(
-            config.getDouble("worldgen.cave-density", preset.caveDensity()),
+            numericOverride(config, "worldgen.cave-density", preset.caveDensity()),
             0.20,
             1.80);
         int cloudLevel = Math.max(48, Math.min(120,
-            config.getInt("worldgen.cloud-level", preset.cloudLevel())));
+            integerOverride(config, "worldgen.cloud-level", preset.cloudLevel())));
         double decorationDensity = clamp(
-            config.getDouble("worldgen.decoration-density", 1.0),
+            numericOverride(config, "worldgen.decoration-density", 1.0),
             0.0,
             2.5);
         double resourceDensity = clamp(
-            config.getDouble("worldgen.resource-density", 1.0),
+            numericOverride(config, "worldgen.resource-density", 1.0),
             0.0,
             2.5);
         int structureSpacing = Math.max(6, Math.min(24,
-            config.getInt("worldgen.structure-spacing-chunks", 10)));
+            integerOverride(config, "worldgen.structure-spacing-chunks", 10)));
         double dungeonChance = clamp(
-            config.getDouble("worldgen.dungeon-chance", 0.12),
+            numericOverride(config, "worldgen.dungeon-chance", 0.12),
             0.0,
             0.50);
 
@@ -93,6 +93,16 @@ public record FaeGeneratorSettings(
             config.getBoolean("worldgen.structures", true),
             config.getBoolean("worldgen.resources", true)
         );
+    }
+
+    private static double numericOverride(FileConfiguration config, String path, double fallback) {
+        Object value = config.get(path);
+        return value instanceof Number number ? number.doubleValue() : fallback;
+    }
+
+    private static int integerOverride(FileConfiguration config, String path, int fallback) {
+        Object value = config.get(path);
+        return value instanceof Number number ? number.intValue() : fallback;
     }
 
     private static double clamp(double value, double min, double max) {
