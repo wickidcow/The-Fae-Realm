@@ -20,9 +20,9 @@ portal:
   auto-activate: true
   cooldown-seconds: 3
 
+# The deterministic generator revision is owned by the plugin code and recorded in
+# fae-realm-generator.yml. It is intentionally not a user-editable setting.
 worldgen:
-  version: 6
-
   # balanced | ethereal | lush | wild
   # Presets provide sensible terrain personalities. The values below can override
   # the preset defaults individually.
