@@ -3,8 +3,10 @@ package com.wickidcow.aetherlegacy.paper.portal;
 import com.wickidcow.aetherlegacy.paper.AetherLegacyPlugin;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -16,6 +18,7 @@ import org.bukkit.event.player.PlayerBucketEmptyEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.persistence.PersistentDataType;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
@@ -25,15 +28,43 @@ import java.util.UUID;
 public final class AetherPortalListener implements Listener {
 
     private final AetherLegacyPlugin plugin;
+    private final NamespacedKey returnLocationKey;
     private final Map<UUID, Location> returnLocations = new HashMap<>();
     private final Map<UUID, Long> cooldownUntil = new HashMap<>();
 
     public AetherPortalListener(AetherLegacyPlugin plugin) {
         this.plugin = plugin;
+        this.returnLocationKey = new NamespacedKey(plugin, "portal_return_location");
     }
 
+    /**
+     * Stores both a fast in-memory copy and a persistent player-data copy so the
+     * return point survives disconnects and clean server restarts.
+     */
     public void rememberReturn(Player player, Location location) {
-        returnLocations.put(player.getUniqueId(), location.clone());
+        Location copy = location.clone();
+        returnLocations.put(player.getUniqueId(), copy);
+        player.getPersistentDataContainer().set(
+            returnLocationKey,
+            PersistentDataType.STRING,
+            serializeLocation(copy)
+        );
+    }
+
+    public Location getReturnLocation(Player player) {
+        Location cached = returnLocations.get(player.getUniqueId());
+        if (cached != null && cached.getWorld() != null) {
+            return cached.clone();
+        }
+
+        String serialized = player.getPersistentDataContainer().get(
+            returnLocationKey, PersistentDataType.STRING);
+        Location persisted = deserializeLocation(serialized);
+        if (persisted != null) {
+            returnLocations.put(player.getUniqueId(), persisted.clone());
+            return persisted;
+        }
+        return plugin.getDefaultReturnLocation();
     }
 
     /**
@@ -100,9 +131,9 @@ public final class AetherPortalListener implements Listener {
 
         Location destination;
         if (player.getWorld().equals(plugin.getAetherWorld())) {
-            destination = returnLocations.getOrDefault(player.getUniqueId(), plugin.getDefaultReturnLocation()).clone();
+            destination = getReturnLocation(player);
         } else {
-            returnLocations.put(player.getUniqueId(), frame.safeExit());
+            rememberReturn(player, frame.safeExit());
             destination = plugin.getAetherArrivalLocation();
         }
 
@@ -112,7 +143,49 @@ public final class AetherPortalListener implements Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         cooldownUntil.remove(event.getPlayer().getUniqueId());
+        // Keep persistent return data and discard only the memory cache.
         returnLocations.remove(event.getPlayer().getUniqueId());
+    }
+
+    private String serializeLocation(Location location) {
+        World world = location.getWorld();
+        if (world == null) {
+            return "";
+        }
+        return world.getUID() + ";"
+            + location.getX() + ";"
+            + location.getY() + ";"
+            + location.getZ() + ";"
+            + location.getYaw() + ";"
+            + location.getPitch();
+    }
+
+    private @Nullable Location deserializeLocation(@Nullable String serialized) {
+        if (serialized == null || serialized.isBlank()) {
+            return null;
+        }
+
+        String[] parts = serialized.split(";", -1);
+        if (parts.length != 6) {
+            return null;
+        }
+
+        try {
+            World world = Bukkit.getWorld(UUID.fromString(parts[0]));
+            if (world == null || world.equals(plugin.getAetherWorld())) {
+                return null;
+            }
+            return new Location(
+                world,
+                Double.parseDouble(parts[1]),
+                Double.parseDouble(parts[2]),
+                Double.parseDouble(parts[3]),
+                Float.parseFloat(parts[4]),
+                Float.parseFloat(parts[5])
+            );
+        } catch (IllegalArgumentException exception) {
+            return null;
+        }
     }
 
     private @Nullable PortalFrame findFrame(Block candidate) {
