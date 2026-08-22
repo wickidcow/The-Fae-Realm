@@ -69,7 +69,7 @@ public final class AetherLegacyPlugin extends JavaPlugin {
         FaeItems faeItems = new FaeItems(this);
         portalListener = new AetherPortalListener(this);
         getServer().getPluginManager().registerEvents(portalListener, this);
-        getServer().getPluginManager().registerEvents(new FaeVoidListener(this), this);
+        getServer().getPluginManager().registerEvents(new FaeVoidListener(this, portalListener), this);
         getServer().getPluginManager().registerEvents(new FaeDungeonLootListener(this), this);
         getServer().getPluginManager().registerEvents(new FaeProgressionListener(this, faeItems), this);
         betterStructuresIntegration.enable();
@@ -311,7 +311,7 @@ public final class AetherLegacyPlugin extends JavaPlugin {
                 world.getBlockAt(x, py, 0).setType(border ? Material.GLOWSTONE : Material.WATER, false);
             }
         }
-        world.setSpawnLocation(new Location(world, 0.5, y + 1, 3.5));
+        world.setSpawnLocation(new Location(world, 0.5, y + 1, 3.5, 180.0f, 0.0f));
     }
 
     private String prettyName(String enumName) {
@@ -334,9 +334,15 @@ public final class AetherLegacyPlugin extends JavaPlugin {
         return getConfig().getString("world.display-name", "Fae Realm");
     }
 
+    /**
+     * Uses the persisted world spawn after first initialization so later config
+     * edits cannot teleport players to an unbuilt Y level.
+     */
     public @NotNull Location getAetherArrivalLocation() {
-        int y = getConfig().getInt("world.spawn-y", 136);
-        return new Location(getAetherWorld(), 0.5, y + 1, 3.5, 180.0f, 0.0f);
+        Location spawn = getAetherWorld().getSpawnLocation().clone();
+        spawn.setYaw(180.0f);
+        spawn.setPitch(0.0f);
+        return spawn;
     }
 
     public @NotNull Location getDefaultReturnLocation() {
