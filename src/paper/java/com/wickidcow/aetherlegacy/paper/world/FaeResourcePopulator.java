@@ -17,13 +17,17 @@ public final class FaeResourcePopulator {
 
     private static final long RESOURCE_SALT = 0x13198A2E03707344L;
 
-    public void populate(WorldInfo info, int chunkX, int chunkZ, LimitedRegion region) {
+    public void populate(WorldInfo info,
+                         int chunkX,
+                         int chunkZ,
+                         LimitedRegion region,
+                         double density) {
         SplittableRandom random = new SplittableRandom(
             mixSeed(info.getSeed() ^ RESOURCE_SALT, chunkX, chunkZ));
         int baseX = chunkX << 4;
         int baseZ = chunkZ << 4;
 
-        int attempts = 7 + random.nextInt(5);
+        int attempts = scaledAttempts(7 + random.nextInt(5), density, random);
         for (int attempt = 0; attempt < attempts; attempt++) {
             int x = baseX + 2 + random.nextInt(12);
             int z = baseZ + 2 + random.nextInt(12);
@@ -34,7 +38,8 @@ public final class FaeResourcePopulator {
 
             FaeRealmBiome biome = AetherChunkGenerator.biomeAt(info.getSeed(), x, z);
             Resource resource = chooseResource(biome, random);
-            int y = Math.max(info.getMinHeight() + 2, surfaceY - resource.minDepth() - random.nextInt(resource.depthRange()));
+            int y = Math.max(info.getMinHeight() + 2,
+                surfaceY - resource.minDepth() - random.nextInt(resource.depthRange()));
 
             Material target = region.getType(x, y, z);
             if (!replaceable(target)) {
@@ -43,6 +48,13 @@ public final class FaeResourcePopulator {
 
             placeVein(region, x, y, z, resource.material(), resource.maxVein(), random);
         }
+    }
+
+    private int scaledAttempts(int baseAttempts, double density, SplittableRandom random) {
+        double expected = Math.max(0.0, baseAttempts * density);
+        int whole = (int) Math.floor(expected);
+        double remainder = expected - whole;
+        return whole + (random.nextDouble() < remainder ? 1 : 0);
     }
 
     private Resource chooseResource(FaeRealmBiome biome, SplittableRandom random) {
