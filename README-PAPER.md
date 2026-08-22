@@ -19,7 +19,7 @@ Current world-generation foundation includes:
 - Deterministic regional structures and rare dungeon gates
 - No bundled original Aether assets
 
-The same seed recreates the same generated terrain. Existing generated chunks are preserved by Minecraft; generator changes apply naturally to newly explored chunks unless the realm world folder is intentionally regenerated.
+The current generator revision is **v3**. The same seed recreates the same generated terrain for the same generator version. Existing generated chunks are preserved by Minecraft; generator changes apply naturally to newly explored chunks unless the realm world folder is intentionally regenerated.
 
 ## Procedural structures
 
