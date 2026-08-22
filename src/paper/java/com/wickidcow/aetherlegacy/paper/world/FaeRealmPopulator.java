@@ -16,6 +16,7 @@ public final class FaeRealmPopulator extends BlockPopulator {
 
     private static final FaeStructurePopulator STRUCTURES = new FaeStructurePopulator();
     private static final FaeResourcePopulator RESOURCES = new FaeResourcePopulator();
+    private static final FaeFeaturePopulator FEATURES = new FaeFeaturePopulator();
 
     private final FaeGeneratorSettings settings;
 
@@ -68,6 +69,8 @@ public final class FaeRealmPopulator extends BlockPopulator {
             if (random.nextInt(96) == 0) {
                 placeFaeRuin(worldInfo, region, random, baseX, baseZ);
             }
+
+            FEATURES.populate(worldInfo, random, chunkX, chunkZ, region);
         }
 
         if (settings.structures()) {
