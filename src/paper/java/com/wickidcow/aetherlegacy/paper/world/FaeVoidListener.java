@@ -17,6 +17,15 @@ public final class FaeVoidListener implements Listener {
     private final AetherLegacyPlugin plugin;
     private final AetherPortalListener portalListener;
 
+    /**
+     * Compatibility constructor used by the plugin entry point. The lightweight
+     * portal helper reads the same persistent return-location key as the registered
+     * portal listener, so void rescue survives restarts and disconnects.
+     */
+    public FaeVoidListener(AetherLegacyPlugin plugin) {
+        this(plugin, new AetherPortalListener(plugin));
+    }
+
     public FaeVoidListener(AetherLegacyPlugin plugin, AetherPortalListener portalListener) {
         this.plugin = plugin;
         this.portalListener = portalListener;
