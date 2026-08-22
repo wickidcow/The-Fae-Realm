@@ -7,6 +7,7 @@ import com.wickidcow.aetherlegacy.paper.portal.AetherPortalListener;
 import com.wickidcow.aetherlegacy.paper.progression.FaeProgressionListener;
 import com.wickidcow.aetherlegacy.paper.world.AetherChunkGenerator;
 import com.wickidcow.aetherlegacy.paper.world.FaeGeneratorSettings;
+import com.wickidcow.aetherlegacy.paper.world.FaeGeneratorVersion;
 import com.wickidcow.aetherlegacy.paper.world.FaeRegionLocator;
 import com.wickidcow.aetherlegacy.paper.world.FaeVoidListener;
 import com.wickidcow.aetherlegacy.paper.world.FaeWorldMetadata;
@@ -29,16 +30,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
-/**
- * Paper entry point for The Fae Realm.
- *
- * <p>The legacy package/class name is retained temporarily so existing development
- * branches and plugin data remain compatible while the public project identity is
- * The Fae Realm.</p>
- */
+/** Paper entry point for the server-side Fae Realm generator. */
 public final class AetherLegacyPlugin extends JavaPlugin {
-
-    private static final int GENERATOR_VERSION = 6;
 
     private FaeGeneratorSettings generatorSettings;
     private AetherChunkGenerator generator;
@@ -79,91 +72,91 @@ public final class AetherLegacyPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new FaeVoidListener(this), this);
         getServer().getPluginManager().registerEvents(new FaeDungeonLootListener(this), this);
         getServer().getPluginManager().registerEvents(new FaeProgressionListener(this, faeItems), this);
-
         betterStructuresIntegration.enable();
 
         PluginCommand command = Objects.requireNonNull(getCommand("fae"), "fae command missing from plugin.yml");
         command.setExecutor((sender, ignored, label, args) -> handleCommand(sender, args));
         command.setTabCompleter((sender, ignored, label, args) -> tabComplete(sender, args));
 
-        getLogger().info("The Fae Realm " + getPluginMeta().getVersion() + " enabled on Minecraft " + Bukkit.getMinecraftVersion());
+        getLogger().info("The Fae Realm " + getPluginMeta().getVersion()
+            + " enabled on Minecraft " + Bukkit.getMinecraftVersion());
         getLogger().info(getRealmDisplayName() + " active: generator v"
-            + getConfig().getInt("worldgen.version", GENERATOR_VERSION) + " / "
+            + FaeGeneratorVersion.CURRENT + " / "
             + generatorSettings.preset().name().toLowerCase(Locale.ROOT)
             + ", floating continents, terrain profiles, regional biomes, resources, Fae structures, vaults, progression, portals, and /fae travel.");
     }
 
     private boolean handleCommand(CommandSender sender, String[] args) {
-        if (args.length > 0) {
-            String subcommand = args[0].toLowerCase(Locale.ROOT);
-            switch (subcommand) {
-                case "info" -> {
-                    sendInfo(sender);
-                    return true;
-                }
-                case "help" -> {
-                    sendHelp(sender);
-                    return true;
-                }
-                case "reload" -> {
-                    if (!sender.hasPermission("faerealm.admin") && !sender.hasPermission("aetherlegacy.admin")) {
-                        sender.sendMessage(Component.text("You do not have permission to reload The Fae Realm.", NamedTextColor.RED));
-                        return true;
-                    }
-                    reloadConfig();
-                    configureRealm(aetherWorld);
-                    sender.sendMessage(Component.text(
-                        "Fae Realm configuration reloaded. Generator, world-name, and integration-mode changes require a restart.",
-                        NamedTextColor.GREEN));
-                    return true;
-                }
-                case "locate" -> {
-                    return handleLocate(sender, args);
-                }
-                case "return" -> {
-                    if (!(sender instanceof Player player)) {
-                        sender.sendMessage("This command must be run by a player.");
-                        return true;
-                    }
-                    player.teleport(portalListener.getReturnLocation(player));
-                    return true;
-                }
-                case "biome" -> {
-                    if (!(sender instanceof Player player)) {
-                        sender.sendMessage("This command must be run by a player.");
-                        return true;
-                    }
-                    if (!player.getWorld().equals(aetherWorld)) {
-                        player.sendMessage(Component.text("Enter the Fae Realm to inspect its region.", NamedTextColor.YELLOW));
-                        return true;
-                    }
-                    Location location = player.getLocation();
-                    var biome = AetherChunkGenerator.biomeAt(
-                        aetherWorld.getSeed(), location.getBlockX(), location.getBlockZ());
-                    player.sendMessage(Component.text(
-                        "Fae region: " + prettyName(biome.name()), NamedTextColor.AQUA));
-                    return true;
-                }
-                default -> {
-                    sender.sendMessage(Component.text("Unknown /fae subcommand. Use /fae help.", NamedTextColor.YELLOW));
-                    return true;
-                }
+        if (args.length == 0) {
+            if (!(sender instanceof Player player)) {
+                sender.sendMessage("Use /fae info or /fae help from the console.");
+                return true;
             }
-        }
-
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage("Use /fae info or /fae help from the console.");
+            portalListener.rememberReturn(player, player.getLocation());
+            player.teleport(getAetherArrivalLocation());
             return true;
         }
 
-        portalListener.rememberReturn(player, player.getLocation());
-        player.teleport(getAetherArrivalLocation());
-        return true;
+        return switch (args[0].toLowerCase(Locale.ROOT)) {
+            case "info" -> {
+                sendInfo(sender);
+                yield true;
+            }
+            case "help" -> {
+                sendHelp(sender);
+                yield true;
+            }
+            case "reload" -> {
+                if (!isAdmin(sender)) {
+                    sender.sendMessage(Component.text(
+                        "You do not have permission to reload The Fae Realm.", NamedTextColor.RED));
+                    yield true;
+                }
+                reloadConfig();
+                configureRealm(aetherWorld);
+                sender.sendMessage(Component.text(
+                    "Fae Realm configuration reloaded. Generator, world-name, and integration-mode changes require a restart.",
+                    NamedTextColor.GREEN));
+                yield true;
+            }
+            case "locate" -> handleLocate(sender, args);
+            case "return" -> {
+                if (!(sender instanceof Player player)) {
+                    sender.sendMessage("This command must be run by a player.");
+                    yield true;
+                }
+                player.teleport(portalListener.getReturnLocation(player));
+                yield true;
+            }
+            case "biome" -> {
+                if (!(sender instanceof Player player)) {
+                    sender.sendMessage("This command must be run by a player.");
+                    yield true;
+                }
+                if (!player.getWorld().equals(aetherWorld)) {
+                    player.sendMessage(Component.text(
+                        "Enter the Fae Realm to inspect its region.", NamedTextColor.YELLOW));
+                    yield true;
+                }
+                Location location = player.getLocation();
+                var biome = AetherChunkGenerator.biomeAt(
+                    aetherWorld.getSeed(), location.getBlockX(), location.getBlockZ());
+                player.sendMessage(Component.text(
+                    "Fae region: " + prettyName(biome.name()), NamedTextColor.AQUA));
+                yield true;
+            }
+            default -> {
+                sender.sendMessage(Component.text(
+                    "Unknown /fae subcommand. Use /fae help.", NamedTextColor.YELLOW));
+                yield true;
+            }
+        };
     }
 
     private boolean handleLocate(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("faerealm.admin") && !sender.hasPermission("aetherlegacy.admin")) {
-            sender.sendMessage(Component.text("You do not have permission to use the Fae region locator.", NamedTextColor.RED));
+        if (!isAdmin(sender)) {
+            sender.sendMessage(Component.text(
+                "You do not have permission to use the Fae region locator.", NamedTextColor.RED));
             return true;
         }
         if (args.length < 2) {
@@ -212,8 +205,8 @@ public final class AetherLegacyPlugin extends JavaPlugin {
         sender.sendMessage(Component.text("World folder: " + aetherWorld.getName(), NamedTextColor.GRAY));
         sender.sendMessage(Component.text("Seed: " + aetherWorld.getSeed(), NamedTextColor.GRAY));
         sender.sendMessage(Component.text(
-            "Generator: v" + getConfig().getInt("worldgen.version", GENERATOR_VERSION)
-                + " / " + generatorSettings.preset().name().toLowerCase(Locale.ROOT),
+            "Generator: v" + FaeGeneratorVersion.CURRENT + " / "
+                + generatorSettings.preset().name().toLowerCase(Locale.ROOT),
             NamedTextColor.GRAY));
         sender.sendMessage(Component.text(
             "Terrain: density " + generatorSettings.islandDensity()
@@ -225,40 +218,50 @@ public final class AetherLegacyPlugin extends JavaPlugin {
             "Layers: decorations x" + generatorSettings.decorationDensity()
                 + ", resources x" + generatorSettings.resourceDensity()
                 + ", structures every " + generatorSettings.structureSpacingChunks() + " chunks"
-                + ", vault chance " + String.format(Locale.ROOT, "%.0f%%", generatorSettings.dungeonChance() * 100.0),
+                + ", vault chance "
+                + String.format(Locale.ROOT, "%.0f%%", generatorSettings.dungeonChance() * 100.0),
             NamedTextColor.GRAY));
-        sender.sendMessage(Component.text("BetterStructures: " + betterStructuresIntegration.status(), NamedTextColor.GRAY));
+        sender.sendMessage(Component.text(
+            "BetterStructures: " + betterStructuresIntegration.status(), NamedTextColor.GRAY));
         sender.sendMessage(Component.text("Paper target: 26.2 / Java 25", NamedTextColor.GRAY));
     }
 
     private void sendHelp(CommandSender sender) {
         sender.sendMessage(Component.text("The Fae Realm commands", NamedTextColor.LIGHT_PURPLE));
         sender.sendMessage(Component.text("/fae — enter the Fae Realm", NamedTextColor.AQUA));
-        sender.sendMessage(Component.text("/fae return — return to your saved portal location", NamedTextColor.AQUA));
-        sender.sendMessage(Component.text("/fae biome — show the current Fae region", NamedTextColor.AQUA));
-        sender.sendMessage(Component.text("/fae info — show generator settings and integration status", NamedTextColor.AQUA));
-        if (sender.hasPermission("faerealm.admin") || sender.hasPermission("aetherlegacy.admin")) {
-            sender.sendMessage(Component.text("/fae locate <region> — locate a region without generating chunks", NamedTextColor.YELLOW));
-            sender.sendMessage(Component.text("/fae reload — reload non-generator settings", NamedTextColor.YELLOW));
+        sender.sendMessage(Component.text(
+            "/fae return — return to your saved portal location", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text(
+            "/fae biome — show the current Fae region", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text(
+            "/fae info — show generator settings and integration status", NamedTextColor.AQUA));
+        if (isAdmin(sender)) {
+            sender.sendMessage(Component.text(
+                "/fae locate <region> — locate a region without generating chunks", NamedTextColor.YELLOW));
+            sender.sendMessage(Component.text(
+                "/fae reload — reload non-generator settings", NamedTextColor.YELLOW));
         }
     }
 
     private List<String> tabComplete(CommandSender sender, String[] args) {
         if (args.length == 1) {
-            List<String> base = (sender.hasPermission("faerealm.admin") || sender.hasPermission("aetherlegacy.admin"))
+            List<String> choices = isAdmin(sender)
                 ? List.of("return", "info", "biome", "locate", "reload", "help")
                 : List.of("return", "info", "biome", "help");
             String prefix = args[0].toLowerCase(Locale.ROOT);
-            return base.stream().filter(value -> value.startsWith(prefix)).toList();
+            return choices.stream().filter(value -> value.startsWith(prefix)).toList();
         }
-        if (args.length == 2 && args[0].equalsIgnoreCase("locate")
-            && (sender.hasPermission("faerealm.admin") || sender.hasPermission("aetherlegacy.admin"))) {
+        if (args.length == 2 && args[0].equalsIgnoreCase("locate") && isAdmin(sender)) {
             String prefix = args[1].toLowerCase(Locale.ROOT);
             return FaeRegionLocator.regionNames().stream()
                 .filter(value -> value.startsWith(prefix))
                 .toList();
         }
         return List.of();
+    }
+
+    private boolean isAdmin(CommandSender sender) {
+        return sender.hasPermission("faerealm.admin") || sender.hasPermission("aetherlegacy.admin");
     }
 
     private World loadAetherWorld(String worldName) {
@@ -276,7 +279,6 @@ public final class AetherLegacyPlugin extends JavaPlugin {
         if (configuredSeed != 0L) {
             creator.seed(configuredSeed);
         }
-
         return creator.createWorld();
     }
 
@@ -303,14 +305,12 @@ public final class AetherLegacyPlugin extends JavaPlugin {
             }
         }
 
-        // Classic fantasy-sky portal: a 4x5 Glowstone frame with a water interior.
         for (int x = -1; x <= 2; x++) {
             for (int py = y; py <= y + 4; py++) {
                 boolean border = x == -1 || x == 2 || py == y || py == y + 4;
                 world.getBlockAt(x, py, 0).setType(border ? Material.GLOWSTONE : Material.WATER, false);
             }
         }
-
         world.setSpawnLocation(new Location(world, 0.5, y + 1, 3.5));
     }
 
