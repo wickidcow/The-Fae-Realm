@@ -19,12 +19,14 @@ public final class FaeFeaturePopulator {
                          Random chunkRandom,
                          int chunkX,
                          int chunkZ,
-                         LimitedRegion region) {
+                         LimitedRegion region,
+                         double density) {
         SplittableRandom random = new SplittableRandom(
             mixSeed(info.getSeed() ^ FEATURE_SALT, chunkX, chunkZ));
 
-        // Most chunks stay natural. Roughly one in six gets a recognizable micro-feature.
-        if (random.nextInt(6) != 0) {
+        // At density 1.0, roughly one in six chunks gets a recognizable micro-feature.
+        double featureChance = Math.min(1.0, Math.max(0.0, density / 6.0));
+        if (random.nextDouble() >= featureChance) {
             return;
         }
 
