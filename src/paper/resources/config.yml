@@ -1,5 +1,6 @@
 world:
-  name: aether
+  name: fae_realm
+  display-name: 'Fae Realm'
   seed: 0
   spawn-y: 136
 
