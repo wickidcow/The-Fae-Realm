@@ -45,8 +45,12 @@ public final class AetherLegacyPlugin extends JavaPlugin {
         saveDefaultConfig();
         generatorSettings = FaeGeneratorSettings.from(getConfig());
         generator = new AetherChunkGenerator(generatorSettings);
-        aetherWorld = loadAetherWorld();
 
+        String worldName = getConfig().getString("world.name", "fae_realm");
+        betterStructuresIntegration = new BetterStructuresIntegration(this);
+        betterStructuresIntegration.prepareWorldExclusion(worldName);
+
+        aetherWorld = loadAetherWorld(worldName);
         if (aetherWorld == null) {
             getLogger().severe("Unable to create or load the Fae Realm. Disabling plugin.");
             getServer().getPluginManager().disablePlugin(this);
@@ -64,7 +68,6 @@ public final class AetherLegacyPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new FaeDungeonLootListener(this), this);
         getServer().getPluginManager().registerEvents(new FaeProgressionListener(this, faeItems), this);
 
-        betterStructuresIntegration = new BetterStructuresIntegration(this);
         betterStructuresIntegration.enable();
 
         PluginCommand command = Objects.requireNonNull(getCommand("fae"), "fae command missing from plugin.yml");
@@ -135,8 +138,7 @@ public final class AetherLegacyPlugin extends JavaPlugin {
             + ", floating continents, regional biomes, resources, Fae structures, vaults, progression, portals, and /fae travel.");
     }
 
-    private World loadAetherWorld() {
-        String worldName = getConfig().getString("world.name", "fae_realm");
+    private World loadAetherWorld(String worldName) {
         World existing = Bukkit.getWorld(worldName);
         if (existing != null) {
             return existing;
