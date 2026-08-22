@@ -6,7 +6,7 @@ on:
       - paper-26.2
   pull_request:
     branches:
-      - paper-26.2
+      - 1.21.1-develop
   workflow_dispatch:
 
 permissions:
@@ -38,3 +38,4 @@ jobs:
           test -f build/libs/AetherLegacyPaper-0.1.0-SNAPSHOT.jar
           jar tf build/libs/AetherLegacyPaper-0.1.0-SNAPSHOT.jar | grep -q 'plugin.yml'
           jar tf build/libs/AetherLegacyPaper-0.1.0-SNAPSHOT.jar | grep -q 'com/wickidcow/aetherlegacy/paper/AetherLegacyPlugin.class'
+          jar tf build/libs/AetherLegacyPaper-0.1.0-SNAPSHOT.jar | grep -q 'com/wickidcow/aetherlegacy/paper/world/FaeRealmPopulator.class'

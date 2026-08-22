@@ -1,7 +1,7 @@
 name: AetherLegacyPaper
 version: '${version}'
 main: com.wickidcow.aetherlegacy.paper.AetherLegacyPlugin
-description: Server-side Paper port foundation for an Aether-style dimension.
+description: Server-side Paper world generator and portal plugin for the Fae Realm.
 authors: [wickidcow]
 contributors: [The Aether Team]
 website: https://github.com/wickidcow/The-Aether
@@ -9,12 +9,13 @@ api-version: '26.2'
 load: POSTWORLD
 commands:
   aether:
-    description: Travel to or inspect the Aether Legacy world.
+    aliases: [fae, faerealm]
+    description: Travel to or inspect the Fae Realm.
     usage: /aether [return|info|reload]
     permission: aetherlegacy.command
 permissions:
   aetherlegacy.command:
-    description: Allows use of the Aether command.
+    description: Allows travel to the Fae Realm.
     default: true
   aetherlegacy.admin:
     description: Allows administrative Aether Legacy commands.

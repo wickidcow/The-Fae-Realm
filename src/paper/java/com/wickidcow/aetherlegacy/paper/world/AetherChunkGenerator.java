@@ -1,7 +1,9 @@
 package com.wickidcow.aetherlegacy.paper.world;
 
 import org.bukkit.Material;
-import org.bukkit.block.Biome;
+import org.bukkit.World;
+import org.bukkit.generator.BiomeProvider;
+import org.bukkit.generator.BlockPopulator;
 import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.generator.WorldInfo;
 import org.jetbrains.annotations.NotNull;
@@ -86,6 +88,16 @@ public final class AetherChunkGenerator extends ChunkGenerator {
                                 int chunkZ,
                                 @NotNull ChunkData chunkData) {
         // Intentionally empty: the Fae Realm has open void beneath the islands.
+    }
+
+    @Override
+    public @NotNull List<BlockPopulator> getDefaultPopulators(@NotNull World world) {
+        return List.of(new FaeRealmPopulator());
+    }
+
+    @Override
+    public @NotNull BiomeProvider getDefaultBiomeProvider(@NotNull WorldInfo worldInfo) {
+        return new FaeBiomeProvider();
     }
 
     private List<Island> collectNearbyIslands(long worldSeed, int minX, int maxX, int minZ, int maxZ) {
