@@ -2,7 +2,7 @@ plugins {
     id 'java'
 }
 
-group = 'com.wickidcow.aetherlegacy'
+group = 'com.wickidcow.faerealm'
 version = '0.1.0-SNAPSHOT'
 
 def paperVersion = '26.2.build.112-stable'
@@ -42,11 +42,11 @@ processResources {
 }
 
 jar {
-    archiveBaseName = 'AetherLegacyPaper'
+    archiveBaseName = 'TheFaeRealm'
     archiveVersion = project.version
     manifest {
         attributes(
-            'Implementation-Title': 'Aether Legacy for Paper',
+            'Implementation-Title': 'The Fae Realm',
             'Implementation-Version': project.version,
             'Built-For': 'Paper 26.2 / Java 25'
         )
