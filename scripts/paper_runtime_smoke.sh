@@ -94,7 +94,6 @@ assert_realm_files() {
     REALM_METADATA="$(resolve_realm_metadata)"
     if [[ -z "$REALM_METADATA" || ! -s "$REALM_METADATA" ]]; then
         echo "Paper runtime smoke ${label}: Fae Realm generator metadata was not created." >&2
-        echo "World/dimension directories observed:" >&2
         find "$WORK_DIR" -maxdepth 6 -type d \( -name 'fae_realm' -o -path '*/dimensions/*' \) -print >&2 || true
         return 1
     fi
@@ -102,27 +101,22 @@ assert_realm_files() {
     local realm_dir
     realm_dir="$(dirname "$REALM_METADATA")"
     if [[ "$(basename "$realm_dir")" != "fae_realm" ]]; then
-        echo "Paper runtime smoke ${label}: metadata exists but is not inside a fae_realm dimension folder: $REALM_METADATA" >&2
+        echo "Paper runtime smoke ${label}: metadata is not inside a fae_realm folder: $REALM_METADATA" >&2
         return 1
     fi
 
-    if ! grep -Fq 'current-generator-version: 6' "$REALM_METADATA"; then
-        echo "Paper runtime smoke ${label}: generator metadata does not report v6." >&2
-        cat "$REALM_METADATA" >&2 || true
-        return 1
-    fi
-
-    if ! grep -Fq 'terrain-profiles: true' "$REALM_METADATA"; then
-        echo "Paper runtime smoke ${label}: v6 terrain-profile metadata was not persisted." >&2
-        cat "$REALM_METADATA" >&2 || true
-        return 1
-    fi
-
-    if ! grep -Fq 'structure-spacing-chunks: 10' "$REALM_METADATA"; then
-        echo "Paper runtime smoke ${label}: v6 structure-spacing metadata was not persisted." >&2
-        cat "$REALM_METADATA" >&2 || true
-        return 1
-    fi
+    for expected in \
+        'current-generator-version: 6' \
+        'terrain-profiles: true' \
+        'structure-spacing-chunks: 10' \
+        'first-settings-fingerprint:' \
+        'current-settings-fingerprint:'; do
+        if ! grep -Fq "$expected" "$REALM_METADATA"; then
+            echo "Paper runtime smoke ${label}: metadata is missing '$expected'." >&2
+            cat "$REALM_METADATA" >&2 || true
+            return 1
+        fi
+    done
 
     if [[ ! -d "$realm_dir/region" ]]; then
         echo "Paper runtime smoke ${label}: Fae Realm region storage was not created at $realm_dir." >&2
@@ -177,6 +171,11 @@ run_cycle() {
         return 1
     fi
 
+    # Exercise the console-safe diagnostics on a real server process.
+    printf 'fae info\n' >&3
+    printf 'fae locate crystal_woods\n' >&3
+    sleep 2
+
     stop_process "$server_pid" 3
 
     local server_status=0
@@ -191,6 +190,18 @@ run_cycle() {
 
     if ! grep -Eq 'Enabling TheFaeRealm v|The Fae Realm .* enabled on Minecraft' "$console_log"; then
         echo "Paper runtime smoke ${label}: The Fae Realm was not observed enabling." >&2
+        cat "$console_log" >&2 || true
+        return 1
+    fi
+
+    if ! grep -Fq 'Generator: v6 / balanced' "$console_log"; then
+        echo "Paper runtime smoke ${label}: /fae info did not report generator v6/balanced." >&2
+        cat "$console_log" >&2 || true
+        return 1
+    fi
+
+    if ! grep -Fq 'Nearest Crystal Woods region sample:' "$console_log"; then
+        echo "Paper runtime smoke ${label}: /fae locate did not return a Crystal Woods result." >&2
         cat "$console_log" >&2 || true
         return 1
     fi
@@ -255,6 +266,9 @@ Fae Realm storage: ${SECOND_REALM_PATH}
 Generator metadata present: yes
 Generator version: 6
 Terrain profiles persisted: yes
+Settings provenance persisted: yes
+Console /fae info: pass
+Console /fae locate: pass
 Second boot loaded persisted realm: yes
 Arrival area preserved on second boot: yes
 EOF
