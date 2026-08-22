@@ -1,8 +1,19 @@
 world:
   name: fae_realm
   display-name: Fae Realm
+  # 0 = let Bukkit choose the seed. Set a number for reproducible realms.
   seed: 0
   spawn-y: 136
+
+  # What happens when a player falls beneath the floating islands:
+  # return-to-overworld | fae-spawn | death
+  void-behavior: return-to-overworld
+
+  # Realm gameplay rules. These can be reloaded without regenerating terrain.
+  pvp: true
+  daylight-cycle: true
+  weather-cycle: true
+  mob-spawning: true
 
 portal:
   enabled: true
@@ -10,7 +21,18 @@ portal:
   cooldown-seconds: 3
 
 worldgen:
-  version: 3
+  version: 4
+
+  # 1.0 is the intended default. Valid range is clamped to 0.25 - 1.75.
+  island-density: 1.0
+
+  # Independent generator layers. Changing these affects newly generated chunks.
+  clouds: true
+  decorations: true
+  structures: true
+  resources: true
+
+  # Existing chunks are never rewritten automatically.
   regenerate-unexplored-chunks-only: true
 
 integrations:
@@ -20,4 +42,4 @@ integrations:
     allow-generic-structures-in-fae-realm: false
 
 messages:
-  prefix: '<gold>[Aether Legacy]</gold> '
+  prefix: '<light_purple>[Fae Realm]</light_purple> '
