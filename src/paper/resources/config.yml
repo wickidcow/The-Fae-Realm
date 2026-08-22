@@ -24,26 +24,23 @@ portal:
 # fae-realm-generator.yml. It is intentionally not a user-editable setting.
 worldgen:
   # balanced | ethereal | lush | wild
-  # Presets provide sensible terrain personalities. The values below can override
-  # the preset defaults individually.
   preset: balanced
 
-  # 1.0 is the intended default. Valid range is clamped to 0.25 - 1.75.
-  island-density: 1.0
-
-  # Vertical relief multiplier. Valid range: 0.50 - 1.80.
-  vertical-scale: 1.0
-
-  # Higher values produce more internal island caverns. Valid range: 0.20 - 1.80.
-  cave-density: 1.0
+  # Leave these as null to inherit the selected preset. Replace null with a number
+  # only when you want to override that one part of the preset.
+  # island-density range: 0.25 - 1.75
+  island-density: null
+  # vertical-scale range: 0.50 - 1.80
+  vertical-scale: null
+  # cave-density range: 0.20 - 1.80
+  cave-density: null
+  # cloud-level range: 48 - 120
+  cloud-level: null
 
   # Enable deterministic island personalities: balanced, plateau, spire,
   # terraced, and hollow. Turning this off makes generated islands use the
   # balanced profile only.
   terrain-profiles: true
-
-  # Decorative cloud shelf Y level. Valid range is clamped to 48 - 120.
-  cloud-level: 74
 
   # Density multipliers for generated details. 0 disables that density layer;
   # values up to 2.5 are supported. The layer toggle below can still disable it.
@@ -64,12 +61,10 @@ worldgen:
   structures: true
   resources: true
 
-  # Existing chunks are never rewritten automatically.
-  regenerate-unexplored-chunks-only: true
-
 progression:
   enabled: true
-  # Chance for a Fae-generated ore/resource block to release Fae Essence when mined.
+  # Chance for a naturally generated Fae resource block to release Fae Essence.
+  # Player-placed source blocks are persistently tracked and never qualify.
   essence-drop-chance: 0.22
 
 integrations:
