@@ -19,6 +19,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
+import java.util.Objects;
 import java.util.SplittableRandom;
 
 /** Lazy deterministic loot for explicitly tagged Fae Vault barrels. */
@@ -34,7 +35,8 @@ public final class FaeDungeonLootListener implements Listener {
         this.plugin = plugin;
         this.faeItems = new FaeItems(plugin);
         this.playerPlacedKey = new NamespacedKey(plugin, "player_placed_barrel");
-        this.generatedVaultBarrelKey = new NamespacedKey(plugin, "generated_vault_barrel");
+        this.generatedVaultBarrelKey = Objects.requireNonNull(
+            NamespacedKey.fromString("thefaerealm:generated_vault_barrel"));
         this.generatedLootKey = new NamespacedKey(plugin, "generated_dungeon_loot");
     }
 
