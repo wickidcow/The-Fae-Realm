@@ -16,6 +16,10 @@ public record FaeGeneratorSettings(
     double caveDensity,
     int cloudLevel,
     boolean terrainProfiles,
+    double decorationDensity,
+    double resourceDensity,
+    int structureSpacingChunks,
+    double dungeonChance,
     boolean clouds,
     boolean decorations,
     boolean structures,
@@ -30,6 +34,10 @@ public record FaeGeneratorSettings(
             preset.caveDensity(),
             preset.cloudLevel(),
             true,
+            1.0,
+            1.0,
+            10,
+            0.12,
             true,
             true,
             true,
@@ -54,6 +62,20 @@ public record FaeGeneratorSettings(
             1.80);
         int cloudLevel = Math.max(48, Math.min(120,
             config.getInt("worldgen.cloud-level", preset.cloudLevel())));
+        double decorationDensity = clamp(
+            config.getDouble("worldgen.decoration-density", 1.0),
+            0.0,
+            2.5);
+        double resourceDensity = clamp(
+            config.getDouble("worldgen.resource-density", 1.0),
+            0.0,
+            2.5);
+        int structureSpacing = Math.max(6, Math.min(24,
+            config.getInt("worldgen.structure-spacing-chunks", 10)));
+        double dungeonChance = clamp(
+            config.getDouble("worldgen.dungeon-chance", 0.12),
+            0.0,
+            0.50);
 
         return new FaeGeneratorSettings(
             preset,
@@ -62,6 +84,10 @@ public record FaeGeneratorSettings(
             caves,
             cloudLevel,
             config.getBoolean("worldgen.terrain-profiles", true),
+            decorationDensity,
+            resourceDensity,
+            structureSpacing,
+            dungeonChance,
             config.getBoolean("worldgen.clouds", true),
             config.getBoolean("worldgen.decorations", true),
             config.getBoolean("worldgen.structures", true),
