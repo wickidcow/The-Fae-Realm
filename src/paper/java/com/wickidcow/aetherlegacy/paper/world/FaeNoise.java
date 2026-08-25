@@ -26,6 +26,41 @@ final class FaeNoise {
         return normalization == 0.0 ? 0.0 : total / normalization;
     }
 
+    /**
+     * Fractal noise sampled after a second low-frequency field bends the coordinate plane.
+     * This removes the broad banding that simple threshold noise can produce while keeping
+     * the function deterministic and inexpensive enough for chunk generation.
+     */
+    static double warpedFractal(long seed,
+                                double x,
+                                double z,
+                                int octaves,
+                                double lacunarity,
+                                double persistence,
+                                double warpStrength) {
+        double warpX = fractal(seed ^ 0x243F6A8885A308D3L,
+            x * 0.55, z * 0.55, 2, 2.0, 0.5);
+        double warpZ = fractal(seed ^ 0x13198A2E03707344L,
+            (x + 19.7) * 0.55, (z - 31.1) * 0.55, 2, 2.0, 0.5);
+        return fractal(
+            seed,
+            x + warpX * warpStrength,
+            z + warpZ * warpStrength,
+            octaves,
+            lacunarity,
+            persistence);
+    }
+
+    /** Returns a 0..1 ridge field, with values near one tracing noise crests. */
+    static double ridged(long seed,
+                         double x,
+                         double z,
+                         int octaves,
+                         double lacunarity,
+                         double persistence) {
+        return 1.0 - Math.abs(fractal(seed, x, z, octaves, lacunarity, persistence));
+    }
+
     static double value(long seed, double x, double z) {
         int x0 = fastFloor(x);
         int z0 = fastFloor(z);
