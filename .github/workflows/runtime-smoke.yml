@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - paper-26.2
+      - fae-realm-fantasy-worldgen
     paths:
       - 'src/paper/**'
       - 'scripts/paper_runtime_smoke.sh'
