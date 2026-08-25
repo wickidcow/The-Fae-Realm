@@ -114,10 +114,10 @@ public record FaeRegionProfile(
             case MIST_GARDENS -> magic > -0.02
                 ? Subregion.MOON_MIST
                 : Subregion.VEIL_MARSH;
-            case ANCIENT_FAE_FOREST -> ruggedness > 0.48 || local > 0.12
+            case ANCIENT_FAE_FOREST -> ruggedness > 0.76 || local > 0.12
                 ? Subregion.ELDERWOOD
                 : Subregion.MOSSBOUND_HOLLOWS;
-            case SKY_HIGHLANDS -> ruggedness + (magic * 0.20) > 0.62
+            case SKY_HIGHLANDS -> ruggedness + (magic * 0.20) > 0.78
                 ? Subregion.WINDCARVED_HEIGHTS
                 : Subregion.SUNSPIRE;
         };
