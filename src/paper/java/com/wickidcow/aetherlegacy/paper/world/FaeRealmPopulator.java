@@ -54,13 +54,14 @@ public final class FaeRealmPopulator extends BlockPopulator {
                     continue;
                 }
 
-                FaeRealmBiome biome = AetherChunkGenerator.biomeAt(worldInfo.getSeed(), x, z);
+                FaeRegionProfile profile = AetherChunkGenerator.regionProfileAt(worldInfo.getSeed(), x, z);
+                FaeRealmBiome biome = profile.biome();
                 Material surface = region.getType(x, y, z);
                 if (surface != biome.surface()) {
                     continue;
                 }
 
-                if (random.nextDouble() < treeChance(biome)) {
+                if (random.nextDouble() < treeChance(profile)) {
                     placeTree(region, x, y + 1, z, biome, random);
                 }
             }
@@ -98,14 +99,15 @@ public final class FaeRealmPopulator extends BlockPopulator {
         return Math.min(1.0, Math.max(0.0, baseChance * density));
     }
 
-    private double treeChance(FaeRealmBiome biome) {
-        return switch (biome) {
+    private double treeChance(FaeRegionProfile profile) {
+        double base = switch (profile.biome()) {
             case GOLDEN_MEADOWS -> 0.22;
             case CRYSTAL_WOODS -> 0.72;
             case MIST_GARDENS -> 0.48;
             case ANCIENT_FAE_FOREST -> 0.82;
             case SKY_HIGHLANDS -> 0.35;
         };
+        return Math.max(0.05, Math.min(0.95, base * profile.vegetationMultiplier()));
     }
 
     private void placeTree(LimitedRegion region, int x, int y, int z,
