@@ -6,7 +6,7 @@ on:
       - paper-26.2
   pull_request:
     branches:
-      - 1.21.1-develop
+      - paper-26.2
   workflow_dispatch:
 
 permissions:
@@ -48,6 +48,7 @@ jobs:
           jar tf "$JAR" | grep -q 'plugin.yml'
           jar tf "$JAR" | grep -q 'com/wickidcow/aetherlegacy/paper/AetherLegacyPlugin.class'
           jar tf "$JAR" | grep -q 'com/wickidcow/aetherlegacy/paper/world/FaeRealmPopulator.class'
+          jar tf "$JAR" | grep -q 'com/wickidcow/aetherlegacy/paper/world/FaeRegionProfile.class'
           jar tf "$JAR" | grep -q 'com/wickidcow/aetherlegacy/paper/world/FaeDungeonGenerator.class'
           jar tf "$JAR" | grep -q 'com/wickidcow/aetherlegacy/paper/loot/FaeDungeonLootListener.class'
           echo "jar=$JAR" >> "$GITHUB_OUTPUT"
