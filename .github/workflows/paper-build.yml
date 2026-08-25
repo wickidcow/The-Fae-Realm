@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - paper-26.2
+      - fae-realm-fantasy-worldgen
   pull_request:
     branches:
       - paper-26.2
