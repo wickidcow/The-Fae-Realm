@@ -31,10 +31,12 @@ public final class FaeDimensionManager {
         this.betterStructures = betterStructures;
         this.baseSettings = baseSettings;
         this.rootWorldName = rootWorldName;
+        FaePlane.registerWorldName(rootWorldName, FaePlane.REALM);
     }
 
     public void registerMain(World world) {
         worlds.put(FaePlane.REALM, world);
+        FaePlane.registerWorldName(world.getName(), FaePlane.REALM);
     }
 
     public void loadSecondaryPlanes() {
@@ -58,6 +60,7 @@ public final class FaeDimensionManager {
 
     private @Nullable World loadPlane(FaePlane plane) {
         String worldName = worldName(plane);
+        FaePlane.registerWorldName(worldName, plane);
         betterStructures.prepareWorldExclusion(worldName);
 
         World existing = Bukkit.getWorld(worldName);
