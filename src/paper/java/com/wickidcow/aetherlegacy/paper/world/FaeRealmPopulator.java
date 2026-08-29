@@ -17,6 +17,7 @@ public final class FaeRealmPopulator extends BlockPopulator {
     private static final FaeStructurePopulator STRUCTURES = new FaeStructurePopulator();
     private static final FaeResourcePopulator RESOURCES = new FaeResourcePopulator();
     private static final FaeFeaturePopulator FEATURES = new FaeFeaturePopulator();
+    private static final FaeFloraPopulator FLORA = new FaeFloraPopulator();
     private static final FaeUndersideGenerator UNDERSIDE = new FaeUndersideGenerator();
 
     private final FaeGeneratorSettings settings;
@@ -45,26 +46,15 @@ public final class FaeRealmPopulator extends BlockPopulator {
         if (settings.decorations() && settings.decorationDensity() > 0.0) {
             UNDERSIDE.populate(worldInfo, chunkX, chunkZ, region, settings);
 
-            int treeAttempts = scaledAttempts(1 + random.nextInt(3), settings.decorationDensity(), random);
-            for (int i = 0; i < treeAttempts; i++) {
-                int x = baseX + random.nextInt(16);
-                int z = baseZ + random.nextInt(16);
-                int y = region.getHighestBlockYAt(x, z);
-                if (y < worldInfo.getMinHeight() || y + 8 >= worldInfo.getMaxHeight()) {
-                    continue;
-                }
-
-                FaeRegionProfile profile = AetherChunkGenerator.regionProfileAt(worldInfo.getSeed(), x, z);
-                FaeRealmBiome biome = profile.biome();
-                Material surface = region.getType(x, y, z);
-                if (surface != biome.surface()) {
-                    continue;
-                }
-
-                if (random.nextDouble() < treeChance(profile)) {
-                    placeTree(region, x, y + 1, z, biome, random);
-                }
-            }
+            // The ecology pass is deterministic and deliberately much denser than the
+            // old one-to-three vanilla-shaped tree attempts. It owns ordinary plants,
+            // twisted regional trees, roots, hanging growth and glowing/crystal accents.
+            FLORA.populate(
+                worldInfo,
+                chunkX,
+                chunkZ,
+                region,
+                settings.decorationDensity());
 
             if (random.nextDouble() < scaledChance(1.0 / 9.0, settings.decorationDensity())) {
                 placeCrystalOutcrop(worldInfo, region, random, baseX, baseZ);
@@ -88,76 +78,23 @@ public final class FaeRealmPopulator extends BlockPopulator {
         }
     }
 
-    private int scaledAttempts(int baseAttempts, double density, Random random) {
-        double expected = Math.max(0.0, baseAttempts * density);
-        int whole = (int) Math.floor(expected);
-        double remainder = expected - whole;
-        return whole + (random.nextDouble() < remainder ? 1 : 0);
-    }
-
     private double scaledChance(double baseChance, double density) {
         return Math.min(1.0, Math.max(0.0, baseChance * density));
     }
 
-    private double treeChance(FaeRegionProfile profile) {
-        double base = switch (profile.biome()) {
-            case GOLDEN_MEADOWS -> 0.22;
-            case CRYSTAL_WOODS -> 0.72;
-            case MIST_GARDENS -> 0.48;
-            case ANCIENT_FAE_FOREST -> 0.82;
-            case SKY_HIGHLANDS -> 0.35;
-        };
-        return Math.max(0.05, Math.min(0.95, base * profile.vegetationMultiplier()));
-    }
-
-    private void placeTree(LimitedRegion region, int x, int y, int z,
-                           FaeRealmBiome biome, Random random) {
-        Material log = switch (biome) {
-            case GOLDEN_MEADOWS -> Material.OAK_LOG;
-            case CRYSTAL_WOODS -> Material.CHERRY_LOG;
-            case MIST_GARDENS -> Material.PALE_OAK_LOG;
-            case ANCIENT_FAE_FOREST -> Material.DARK_OAK_LOG;
-            case SKY_HIGHLANDS -> Material.BIRCH_LOG;
-        };
-        Material leaves = switch (biome) {
-            case GOLDEN_MEADOWS -> Material.OAK_LEAVES;
-            case CRYSTAL_WOODS -> Material.CHERRY_LEAVES;
-            case MIST_GARDENS -> Material.PALE_OAK_LEAVES;
-            case ANCIENT_FAE_FOREST -> Material.DARK_OAK_LEAVES;
-            case SKY_HIGHLANDS -> Material.BIRCH_LEAVES;
-        };
-
-        int height = 4 + random.nextInt(3);
-        for (int dy = 0; dy < height; dy++) {
-            setIfInside(region, x, y + dy, z, log);
-        }
-
-        int crownY = y + height - 2;
-        for (int dy = 0; dy <= 3; dy++) {
-            int radius = dy == 3 ? 1 : 2;
-            for (int dx = -radius; dx <= radius; dx++) {
-                for (int dz = -radius; dz <= radius; dz++) {
-                    if (Math.abs(dx) == radius && Math.abs(dz) == radius && random.nextBoolean()) {
-                        continue;
-                    }
-                    int py = crownY + dy;
-                    if (region.isInRegion(x + dx, py, z + dz)
-                        && region.getType(x + dx, py, z + dz).isAir()) {
-                        region.setType(x + dx, py, z + dz, leaves);
-                    }
-                }
-            }
-        }
-    }
-
-    private void placeCrystalOutcrop(WorldInfo info, LimitedRegion region, Random random, int baseX, int baseZ) {
+    private void placeCrystalOutcrop(WorldInfo info,
+                                     LimitedRegion region,
+                                     Random random,
+                                     int baseX,
+                                     int baseZ) {
         int x = baseX + 3 + random.nextInt(10);
         int z = baseZ + 3 + random.nextInt(10);
-        int y = region.getHighestBlockYAt(x, z);
-        if (y < info.getMinHeight() || y + 4 >= info.getMaxHeight()) {
+        FaeRealmBiome biome = AetherChunkGenerator.biomeAt(info.getSeed(), x, z);
+        int y = findFaeSurface(info, region, x, z, biome);
+        if (y == Integer.MIN_VALUE || y + 4 >= info.getMaxHeight()) {
             return;
         }
-        if (AetherChunkGenerator.biomeAt(info.getSeed(), x, z) != FaeRealmBiome.CRYSTAL_WOODS) {
+        if (biome != FaeRealmBiome.CRYSTAL_WOODS) {
             return;
         }
 
@@ -172,17 +109,16 @@ public final class FaeRealmPopulator extends BlockPopulator {
         }
     }
 
-    private void placeFaeRuin(WorldInfo info, LimitedRegion region, Random random, int baseX, int baseZ) {
+    private void placeFaeRuin(WorldInfo info,
+                              LimitedRegion region,
+                              Random random,
+                              int baseX,
+                              int baseZ) {
         int x = baseX + 5 + random.nextInt(6);
         int z = baseZ + 5 + random.nextInt(6);
-        int y = region.getHighestBlockYAt(x, z);
-        if (y < info.getMinHeight() || y + 6 >= info.getMaxHeight()) {
-            return;
-        }
-
-        Material surface = region.getType(x, y, z);
         FaeRealmBiome biome = AetherChunkGenerator.biomeAt(info.getSeed(), x, z);
-        if (surface != biome.surface()) {
+        int y = findFaeSurface(info, region, x, z, biome);
+        if (y == Integer.MIN_VALUE || y + 6 >= info.getMaxHeight()) {
             return;
         }
 
@@ -198,9 +134,31 @@ public final class FaeRealmPopulator extends BlockPopulator {
 
         int pillarHeight = 3 + random.nextInt(3);
         for (int dy = 1; dy <= pillarHeight; dy++) {
-            setIfInside(region, x, y + dy, z, dy == pillarHeight ? Material.CHISELED_STONE_BRICKS : Material.STONE_BRICKS);
+            setIfInside(region, x, y + dy, z,
+                dy == pillarHeight ? Material.CHISELED_STONE_BRICKS : Material.STONE_BRICKS);
         }
         setIfInside(region, x, y + pillarHeight + 1, z, Material.SOUL_LANTERN);
+    }
+
+    /**
+     * Searches for the actual Fae surface instead of blindly trusting the highest
+     * heightmap entry. This makes decoration resilient to cloud blocks and to details
+     * already placed during the surface pass.
+     */
+    private int findFaeSurface(WorldInfo info,
+                               LimitedRegion region,
+                               int x,
+                               int z,
+                               FaeRealmBiome biome) {
+        for (int y = info.getMaxHeight() - 2; y >= info.getMinHeight(); y--) {
+            if (!region.isInRegion(x, y, z)) {
+                continue;
+            }
+            if (region.getType(x, y, z) == biome.surface()) {
+                return y;
+            }
+        }
+        return Integer.MIN_VALUE;
     }
 
     private void setIfInside(LimitedRegion region, int x, int y, int z, Material material) {
