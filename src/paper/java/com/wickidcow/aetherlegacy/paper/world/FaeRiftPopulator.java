@@ -102,15 +102,16 @@ public final class FaeRiftPopulator {
     }
 
     private boolean stable(LimitedRegion region, int x, int y, int z) {
-        for (int dx = -2; dx <= 2; dx++) {
-            for (int dz = -2; dz <= 2; dz++) {
-                if (!region.isInRegion(x + dx, y, z + dz)
-                    || region.getType(x + dx, y, z + dz).isAir()) {
-                    return false;
+        int supported = 0;
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                if (region.isInRegion(x + dx, y, z + dz)
+                    && !region.getType(x + dx, y, z + dz).isAir()) {
+                    supported++;
                 }
             }
         }
-        return true;
+        return supported >= 7;
     }
 
     private int findSurface(WorldInfo info,
