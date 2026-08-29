@@ -1,6 +1,7 @@
 package com.wickidcow.aetherlegacy.paper.integration;
 
 import com.wickidcow.aetherlegacy.paper.AetherLegacyPlugin;
+import com.wickidcow.aetherlegacy.paper.world.FaePlane;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.event.Cancellable;
@@ -26,7 +27,7 @@ public final class BetterStructuresIntegration {
     }
 
     /**
-     * Called before the Fae Realm exists so compatible BetterStructures builds can
+     * Called before a Fae world exists so compatible BetterStructures builds can
      * set world validity before any spawn chunks are generated.
      */
     public void prepareWorldExclusion(String worldName) {
@@ -36,20 +37,19 @@ public final class BetterStructuresIntegration {
         }
 
         if (allowGenericStructures()) {
-            // Reverse any exclusion persisted by an earlier Fae Realm configuration.
             trySetWorldValidity(String.class, worldName, true);
-            earlyWorldExclusion = false;
             return;
         }
 
-        earlyWorldExclusion = trySetWorldValidity(String.class, worldName, false);
-        if (earlyWorldExclusion) {
-            plugin.getLogger().info("BetterStructures detected; pre-excluded world '" + worldName
-                + "' before Fae Realm creation.");
+        boolean excluded = trySetWorldValidity(String.class, worldName, false);
+        earlyWorldExclusion |= excluded;
+        if (excluded) {
+            plugin.getLogger().info("BetterStructures detected; pre-excluded Fae world '" + worldName
+                + "' before world creation.");
         }
     }
 
-    /** Finalizes compatibility after the Fae world is available. */
+    /** Finalizes compatibility after the Fae worlds are available. */
     public void enable() {
         refreshDetection();
         if (!detected) {
@@ -57,25 +57,36 @@ public final class BetterStructuresIntegration {
         }
 
         if (allowGenericStructures()) {
-            trySetWorldValidity(World.class, plugin.getAetherWorld(), true);
+            for (FaePlane plane : FaePlane.values()) {
+                World world = plugin.getFaeWorld(plane);
+                if (world != null) {
+                    trySetWorldValidity(World.class, world, true);
+                }
+            }
             plugin.getLogger().info(
-                "BetterStructures detected; generic BetterStructures generation is allowed in Fae Realm.");
+                "BetterStructures detected; generic BetterStructures generation is allowed in Fae planes.");
             return;
         }
 
-        if (!earlyWorldExclusion) {
-            earlyWorldExclusion = trySetWorldValidity(World.class, plugin.getAetherWorld(), false);
+        boolean worldApiExcluded = false;
+        for (FaePlane plane : FaePlane.values()) {
+            World world = plugin.getFaeWorld(plane);
+            if (world != null) {
+                worldApiExcluded |= trySetWorldValidity(World.class, world, false);
+            }
         }
+        earlyWorldExclusion |= worldApiExcluded;
+
         if (!earlyWorldExclusion) {
             registerPlacementGuard(betterStructures);
         }
 
         if (earlyWorldExclusion) {
             plugin.getLogger().info(
-                "BetterStructures detected; Fae Realm is excluded before BetterStructures chunk scans.");
+                "BetterStructures detected; Fae planes are excluded from generic structure scans.");
         } else if (guardRegistered) {
             plugin.getLogger().info(
-                "BetterStructures detected; using placement guard fallback for Fae Realm.");
+                "BetterStructures detected; using placement guard fallback for every Fae plane.");
         }
     }
 
@@ -146,7 +157,7 @@ public final class BetterStructuresIntegration {
                         if (!(rawLocation instanceof Location location) || location.getWorld() == null) {
                             return;
                         }
-                        if (location.getWorld().equals(plugin.getAetherWorld())) {
+                        if (plugin.isFaeWorld(location.getWorld())) {
                             cancellable.setCancelled(true);
                         }
                     } catch (ReflectiveOperationException exception) {
@@ -183,13 +194,13 @@ public final class BetterStructuresIntegration {
             return "not detected";
         }
         if (allowGenericStructures()) {
-            return "detected (generic Fae Realm structures allowed)";
+            return "detected (generic Fae-plane structures allowed)";
         }
         if (earlyWorldExclusion) {
-            return "detected (Fae Realm excluded before scans)";
+            return "detected (Fae planes excluded before scans)";
         }
         if (guardRegistered) {
-            return "detected (placement guard fallback active)";
+            return "detected (all-plane placement guard active)";
         }
         return "detected (compatibility guard unavailable)";
     }
