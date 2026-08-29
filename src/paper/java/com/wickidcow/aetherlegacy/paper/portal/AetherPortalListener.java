@@ -1,6 +1,7 @@
 package com.wickidcow.aetherlegacy.paper.portal;
 
 import com.wickidcow.aetherlegacy.paper.AetherLegacyPlugin;
+import com.wickidcow.aetherlegacy.paper.world.FaePlane;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -53,7 +54,7 @@ public final class AetherPortalListener implements Listener {
 
     public Location getReturnLocation(Player player) {
         Location cached = returnLocations.get(player.getUniqueId());
-        if (cached != null && cached.getWorld() != null) {
+        if (cached != null && cached.getWorld() != null && !plugin.isFaeWorld(cached.getWorld())) {
             return cached.clone();
         }
 
@@ -85,7 +86,6 @@ public final class AetherPortalListener implements Listener {
             return;
         }
 
-        // Run after the vanilla bucket placement so the complete interior wins.
         plugin.getServer().getScheduler().runTask(plugin, () -> {
             frame.fillInterior();
             frame.world().playSound(frame.center(), Sound.BLOCK_PORTAL_TRIGGER, 0.8f, 1.35f);
@@ -130,8 +130,11 @@ public final class AetherPortalListener implements Listener {
         cooldownUntil.put(player.getUniqueId(), now + cooldownSeconds * 1000L);
 
         Location destination;
-        if (player.getWorld().equals(plugin.getAetherWorld())) {
-            destination = getReturnLocation(player);
+        if (plugin.isFaeWorld(player.getWorld())) {
+            FaePlane plane = plugin.getFaePlane(player.getWorld());
+            destination = plane == FaePlane.REALM
+                ? getReturnLocation(player)
+                : plugin.getAetherArrivalLocation();
         } else {
             rememberReturn(player, frame.safeExit());
             destination = plugin.getAetherArrivalLocation();
@@ -143,7 +146,6 @@ public final class AetherPortalListener implements Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         cooldownUntil.remove(event.getPlayer().getUniqueId());
-        // Keep persistent return data and discard only the memory cache.
         returnLocations.remove(event.getPlayer().getUniqueId());
     }
 
@@ -172,7 +174,7 @@ public final class AetherPortalListener implements Listener {
 
         try {
             World world = Bukkit.getWorld(UUID.fromString(parts[0]));
-            if (world == null || world.equals(plugin.getAetherWorld())) {
+            if (world == null || plugin.isFaeWorld(world)) {
                 return null;
             }
             return new Location(
