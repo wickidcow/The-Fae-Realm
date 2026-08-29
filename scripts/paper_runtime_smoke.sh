@@ -11,7 +11,7 @@ EXPECTED_GENERATOR_VERSION="${FAE_REALM_SMOKE_GENERATOR_VERSION:-$(sed -n 's/.*C
 USER_AGENT="${PAPER_DOWNLOAD_USER_AGENT:-The-Fae-Realm-CI/${EXPECTED_PLUGIN_VERSION} (https://github.com/wickidcow/The-Fae-Realm)}"
 STARTUP_TIMEOUT_SECONDS="${PAPER_SMOKE_STARTUP_TIMEOUT:-240}"
 SHUTDOWN_TIMEOUT_SECONDS="${PAPER_SMOKE_SHUTDOWN_TIMEOUT:-60}"
-REALM_METADATA="$WORK_DIR/fae_realm/fae-realm-generator.yml"
+REALM_METADATA=""
 FAE_WORLDS=(fae_realm fae_realm_wildbloom fae_realm_gloam fae_realm_starfall)
 SECONDARY_PLANES=(
     "Wildbloom:fae_realm_wildbloom"
@@ -98,14 +98,25 @@ stop_process() {
     fi
 }
 
+resolve_world_metadata() {
+    local world_name="$1"
+    find "$WORK_DIR" -type f -path "*/${world_name}/fae-realm-generator.yml" -print -quit
+}
+
 assert_world_metadata() {
     local label="$1"
     local world_name="$2"
-    local metadata="$WORK_DIR/$world_name/fae-realm-generator.yml"
+    local metadata
+    metadata="$(resolve_world_metadata "$world_name")"
 
-    if [[ ! -s "$metadata" ]]; then
-        echo "Paper runtime smoke ${label}: generator metadata missing for ${world_name}: ${metadata}" >&2
+    if [[ -z "$metadata" || ! -s "$metadata" ]]; then
+        echo "Paper runtime smoke ${label}: generator metadata missing for ${world_name}." >&2
+        find "$WORK_DIR" -type f -name 'fae-realm-generator.yml' -print >&2 || true
         return 1
+    fi
+
+    if [[ "$world_name" == "fae_realm" ]]; then
+        REALM_METADATA="$metadata"
     fi
 
     for expected in \
@@ -121,9 +132,11 @@ assert_world_metadata() {
         fi
     done
 
-    if [[ ! -d "$WORK_DIR/$world_name/region" ]]; then
-        echo "Paper runtime smoke ${label}: ${world_name} region storage was not created." >&2
-        find "$WORK_DIR/$world_name" -maxdepth 2 -type f -print >&2 || true
+    local world_dir
+    world_dir="$(dirname "$metadata")"
+    if [[ ! -d "$world_dir/region" ]]; then
+        echo "Paper runtime smoke ${label}: ${world_name} region storage was not created at ${world_dir}." >&2
+        find "$world_dir" -maxdepth 2 -type f -print >&2 || true
         return 1
     fi
 }
@@ -134,6 +147,11 @@ assert_fae_worlds() {
     for world_name in "${FAE_WORLDS[@]}"; do
         assert_world_metadata "$label" "$world_name" || return 1
     done
+
+    if [[ -z "$REALM_METADATA" || ! -s "$REALM_METADATA" ]]; then
+        echo "Paper runtime smoke ${label}: central realm metadata could not be resolved." >&2
+        return 1
+    fi
 
     if ! grep -Fq 'structure-spacing-chunks: 10' "$REALM_METADATA"; then
         echo "Paper runtime smoke ${label}: central Fae Realm metadata lost base structure spacing." >&2
@@ -210,7 +228,6 @@ run_cycle() {
         return 1
     fi
 
-    # Exercise console-safe diagnostics on the real server process.
     printf 'fae info\n' >&3
     printf 'fae planes\n' >&3
     printf 'fae locate crystal_woods\n' >&3
@@ -320,6 +337,7 @@ Central realm: fae_realm
 Wildbloom: fae_realm_wildbloom
 Gloam: fae_realm_gloam
 Starfall: fae_realm_starfall
+Central metadata storage: ${SECOND_REALM_PATH}
 Generator metadata present for all planes: yes
 Generator version: ${EXPECTED_GENERATOR_VERSION}
 Terrain profiles persisted: yes
