@@ -3,6 +3,7 @@ package com.wickidcow.aetherlegacy.paper.loot;
 import com.wickidcow.aetherlegacy.paper.AetherLegacyPlugin;
 import com.wickidcow.aetherlegacy.paper.item.FaeItems;
 import com.wickidcow.aetherlegacy.paper.world.AetherChunkGenerator;
+import com.wickidcow.aetherlegacy.paper.world.FaePlane;
 import com.wickidcow.aetherlegacy.paper.world.FaeRealmBiome;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -42,7 +43,7 @@ public final class FaeDungeonLootListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBarrelPlaced(BlockPlaceEvent event) {
-        if (!event.getBlockPlaced().getWorld().equals(plugin.getAetherWorld())
+        if (!plugin.isFaeWorld(event.getBlockPlaced().getWorld())
             || event.getBlockPlaced().getType() != Material.BARREL
             || !(event.getBlockPlaced().getState() instanceof Barrel barrel)) {
             return;
@@ -56,7 +57,7 @@ public final class FaeDungeonLootListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onInventoryOpen(InventoryOpenEvent event) {
         if (!(event.getInventory().getHolder() instanceof Barrel barrel)
-            || !barrel.getWorld().equals(plugin.getAetherWorld())) {
+            || !plugin.isFaeWorld(barrel.getWorld())) {
             return;
         }
 
@@ -79,13 +80,17 @@ public final class FaeDungeonLootListener implements Listener {
         SplittableRandom random = new SplittableRandom(seed);
         FaeRealmBiome biome = AetherChunkGenerator.biomeAt(
             barrel.getWorld().getSeed(), barrel.getX(), barrel.getZ());
+        FaePlane plane = plugin.getFaePlane(barrel.getWorld());
 
-        populate(inventory, biome, random);
+        populate(inventory, biome, plane, random);
         barrel.getPersistentDataContainer().set(generatedLootKey, PersistentDataType.BYTE, (byte) 1);
         barrel.update(true, false);
     }
 
-    private void populate(Inventory inventory, FaeRealmBiome biome, SplittableRandom random) {
+    private void populate(Inventory inventory,
+                          FaeRealmBiome biome,
+                          FaePlane plane,
+                          SplittableRandom random) {
         addRandomSlot(inventory, new ItemStack(Material.EXPERIENCE_BOTTLE, 2 + random.nextInt(6)), random);
         addRandomSlot(inventory, new ItemStack(Material.GLOW_BERRIES, 3 + random.nextInt(8)), random);
         addRandomSlot(inventory, new ItemStack(Material.ENDER_PEARL, 1 + random.nextInt(3)), random);
@@ -111,6 +116,35 @@ public final class FaeDungeonLootListener implements Listener {
             case SKY_HIGHLANDS -> {
                 addRandomSlot(inventory, new ItemStack(Material.WIND_CHARGE, 2 + random.nextInt(6)), random);
                 addRandomSlot(inventory, new ItemStack(Material.IRON_INGOT, 2 + random.nextInt(5)), random);
+            }
+        }
+
+        switch (plane) {
+            case REALM -> {
+            }
+            case WILDBLOOM -> {
+                addRandomSlot(inventory, new ItemStack(Material.FLOWERING_AZALEA, 1 + random.nextInt(3)), random);
+                addRandomSlot(inventory, new ItemStack(Material.SPORE_BLOSSOM, 1), random);
+                if (random.nextInt(5) == 0) {
+                    addRandomSlot(inventory, namedRelic(
+                        Material.PINK_PETALS, "Wildbloom Petals", NamedTextColor.LIGHT_PURPLE), random);
+                }
+            }
+            case GLOAM -> {
+                addRandomSlot(inventory, new ItemStack(Material.ECHO_SHARD, 1 + random.nextInt(3)), random);
+                addRandomSlot(inventory, new ItemStack(Material.SCULK, 2 + random.nextInt(5)), random);
+                if (random.nextInt(5) == 0) {
+                    addRandomSlot(inventory, namedRelic(
+                        Material.SOUL_LANTERN, "Gloam Lantern", NamedTextColor.DARK_PURPLE), random);
+                }
+            }
+            case STARFALL -> {
+                addRandomSlot(inventory, new ItemStack(Material.AMETHYST_SHARD, 6 + random.nextInt(11)), random);
+                addRandomSlot(inventory, new ItemStack(Material.CRYING_OBSIDIAN, 1 + random.nextInt(3)), random);
+                if (random.nextInt(5) == 0) {
+                    addRandomSlot(inventory, namedRelic(
+                        Material.AMETHYST_CLUSTER, "Starfall Shard", NamedTextColor.AQUA), random);
+                }
             }
         }
 
