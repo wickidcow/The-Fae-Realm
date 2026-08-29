@@ -1,7 +1,7 @@
 name: TheFaeRealm
 version: '${version}'
 main: com.wickidcow.aetherlegacy.paper.AetherLegacyPlugin
-description: Server-side Paper fantasy world generator, structures, dungeons, resources, and portal plugin for the Fae Realm.
+description: Server-side Paper fantasy world generator with living floating islands, linked Fae planes, structures, dungeons, resources, and portals.
 authors: [wickidcow]
 contributors: [The Aether Team]
 website: https://github.com/wickidcow/The-Fae-Realm
@@ -11,8 +11,8 @@ softdepend: [BetterStructures]
 commands:
   fae:
     aliases: [faerealm, aether]
-    description: Travel to, inspect, or administer the Fae Realm.
-    usage: /fae [return|info|biome|locate|reload|help]
+    description: Travel to, inspect, or administer the Fae Realm and its linked planes.
+    usage: /fae [realm|wildbloom|gloam|starfall|planes|return|info|biome|locate|reload|help]
     permission: faerealm.command
 permissions:
   faerealm.command:
