@@ -11,7 +11,13 @@ EXPECTED_GENERATOR_VERSION="${FAE_REALM_SMOKE_GENERATOR_VERSION:-$(sed -n 's/.*C
 USER_AGENT="${PAPER_DOWNLOAD_USER_AGENT:-The-Fae-Realm-CI/${EXPECTED_PLUGIN_VERSION} (https://github.com/wickidcow/The-Fae-Realm)}"
 STARTUP_TIMEOUT_SECONDS="${PAPER_SMOKE_STARTUP_TIMEOUT:-240}"
 SHUTDOWN_TIMEOUT_SECONDS="${PAPER_SMOKE_SHUTDOWN_TIMEOUT:-60}"
-REALM_METADATA=""
+REALM_METADATA="$WORK_DIR/fae_realm/fae-realm-generator.yml"
+FAE_WORLDS=(fae_realm fae_realm_wildbloom fae_realm_gloam fae_realm_starfall)
+SECONDARY_PLANES=(
+    "Wildbloom:fae_realm_wildbloom"
+    "Gloam:fae_realm_gloam"
+    "Starfall:fae_realm_starfall"
+)
 
 if [[ -z "$EXPECTED_PLUGIN_VERSION" ]]; then
     echo "Could not resolve The Fae Realm plugin version." >&2
@@ -92,44 +98,63 @@ stop_process() {
     fi
 }
 
-resolve_realm_metadata() {
-    find "$WORK_DIR" -type f -name 'fae-realm-generator.yml' -print -quit
-}
-
-assert_realm_files() {
+assert_world_metadata() {
     local label="$1"
-    REALM_METADATA="$(resolve_realm_metadata)"
-    if [[ -z "$REALM_METADATA" || ! -s "$REALM_METADATA" ]]; then
-        echo "Paper runtime smoke ${label}: Fae Realm generator metadata was not created." >&2
-        find "$WORK_DIR" -maxdepth 6 -type d \( -name 'fae_realm' -o -path '*/dimensions/*' \) -print >&2 || true
-        return 1
-    fi
+    local world_name="$2"
+    local metadata="$WORK_DIR/$world_name/fae-realm-generator.yml"
 
-    local realm_dir
-    realm_dir="$(dirname "$REALM_METADATA")"
-    if [[ "$(basename "$realm_dir")" != "fae_realm" ]]; then
-        echo "Paper runtime smoke ${label}: metadata is not inside a fae_realm folder: $REALM_METADATA" >&2
+    if [[ ! -s "$metadata" ]]; then
+        echo "Paper runtime smoke ${label}: generator metadata missing for ${world_name}: ${metadata}" >&2
         return 1
     fi
 
     for expected in \
         "current-generator-version: ${EXPECTED_GENERATOR_VERSION}" \
         'terrain-profiles: true' \
-        'structure-spacing-chunks: 10' \
         'first-settings-fingerprint:' \
-        'current-settings-fingerprint:'; do
-        if ! grep -Fq "$expected" "$REALM_METADATA"; then
-            echo "Paper runtime smoke ${label}: metadata is missing '$expected'." >&2
-            cat "$REALM_METADATA" >&2 || true
+        'current-settings-fingerprint:' \
+        "world-name: ${world_name}"; do
+        if ! grep -Fq "$expected" "$metadata"; then
+            echo "Paper runtime smoke ${label}: ${world_name} metadata is missing '$expected'." >&2
+            cat "$metadata" >&2 || true
             return 1
         fi
     done
 
-    if [[ ! -d "$realm_dir/region" ]]; then
-        echo "Paper runtime smoke ${label}: Fae Realm region storage was not created at $realm_dir." >&2
-        find "$realm_dir" -maxdepth 2 -type f -print >&2 || true
+    if [[ ! -d "$WORK_DIR/$world_name/region" ]]; then
+        echo "Paper runtime smoke ${label}: ${world_name} region storage was not created." >&2
+        find "$WORK_DIR/$world_name" -maxdepth 2 -type f -print >&2 || true
         return 1
     fi
+}
+
+assert_fae_worlds() {
+    local label="$1"
+
+    for world_name in "${FAE_WORLDS[@]}"; do
+        assert_world_metadata "$label" "$world_name" || return 1
+    done
+
+    if ! grep -Fq 'structure-spacing-chunks: 10' "$REALM_METADATA"; then
+        echo "Paper runtime smoke ${label}: central Fae Realm metadata lost base structure spacing." >&2
+        cat "$REALM_METADATA" >&2 || true
+        return 1
+    fi
+}
+
+assert_plane_logs() {
+    local label="$1"
+    local console_log="$WORK_DIR/${label}.console.log"
+
+    for plane_spec in "${SECONDARY_PLANES[@]}"; do
+        local plane_name="${plane_spec%%:*}"
+        local world_name="${plane_spec#*:}"
+        if ! grep -Fq "Linked Fae plane active: ${plane_name} (${world_name}, generator v${EXPECTED_GENERATOR_VERSION})." "$console_log"; then
+            echo "Paper runtime smoke ${label}: ${plane_name} did not report as an active linked plane." >&2
+            cat "$console_log" >&2 || true
+            return 1
+        fi
+    done
 }
 
 run_cycle() {
@@ -170,7 +195,7 @@ run_cycle() {
     fi
 
     sleep 3
-    if ! assert_realm_files "$label"; then
+    if ! assert_fae_worlds "$label"; then
         stop_process "$server_pid" 3
         wait "$server_pid" >/dev/null 2>&1 || true
         exec 3>&-
@@ -178,8 +203,16 @@ run_cycle() {
         return 1
     fi
 
-    # Exercise the console-safe diagnostics on a real server process.
+    if ! assert_plane_logs "$label"; then
+        stop_process "$server_pid" 3
+        wait "$server_pid" >/dev/null 2>&1 || true
+        exec 3>&-
+        return 1
+    fi
+
+    # Exercise console-safe diagnostics on the real server process.
     printf 'fae info\n' >&3
+    printf 'fae planes\n' >&3
     printf 'fae locate crystal_woods\n' >&3
     sleep 2
 
@@ -207,7 +240,21 @@ run_cycle() {
         return 1
     fi
 
-    if ! grep -Fq 'Nearest Crystal Woods region sample:' "$console_log"; then
+    if ! grep -Fq 'Linked planes: 4 / 4' "$console_log"; then
+        echo "Paper runtime smoke ${label}: /fae info did not report all four Fae planes." >&2
+        cat "$console_log" >&2 || true
+        return 1
+    fi
+
+    for world_name in fae_realm_wildbloom fae_realm_gloam fae_realm_starfall; do
+        if ! grep -Fq "$world_name" "$console_log"; then
+            echo "Paper runtime smoke ${label}: /fae planes did not report ${world_name}." >&2
+            cat "$console_log" >&2 || true
+            return 1
+        fi
+    done
+
+    if ! grep -Fq 'Nearest Crystal Woods region sample' "$console_log"; then
         echo "Paper runtime smoke ${label}: /fae locate did not return a Crystal Woods result." >&2
         cat "$console_log" >&2 || true
         return 1
@@ -247,7 +294,7 @@ SECOND_METADATA_HASH="$(sha256sum "$REALM_METADATA" | awk '{print $1}')"
 SECOND_REALM_PATH="${REALM_METADATA#"$WORK_DIR"/}"
 
 if ! grep -Fq 'Existing Fae Realm detected; preserving player changes around realm spawn.' "$WORK_DIR/second.console.log"; then
-    echo "Second boot did not preserve the initialized arrival area." >&2
+    echo "Second boot did not preserve the initialized central arrival area." >&2
     cat "$WORK_DIR/second.console.log" >&2 || true
     exit 1
 fi
@@ -268,15 +315,19 @@ The Fae Realm: ${EXPECTED_PLUGIN_VERSION}
 Minecraft: ${MC_VERSION}
 Paper stable build: ${PAPER_BUILD}
 Cycles: 2
-Fae Realm dimension created: yes
-Fae Realm storage: ${SECOND_REALM_PATH}
-Generator metadata present: yes
+Fae worlds created: 4
+Central realm: fae_realm
+Wildbloom: fae_realm_wildbloom
+Gloam: fae_realm_gloam
+Starfall: fae_realm_starfall
+Generator metadata present for all planes: yes
 Generator version: ${EXPECTED_GENERATOR_VERSION}
 Terrain profiles persisted: yes
 Settings provenance persisted: yes
 Console /fae info: pass
+Console /fae planes: pass
 Console /fae locate: pass
-Second boot loaded persisted realm: yes
-Arrival area preserved on second boot: yes
+Second boot loaded persisted Fae worlds: yes
+Central arrival area preserved on second boot: yes
 EOF
 cat "$WORK_DIR/smoke-result.txt"
