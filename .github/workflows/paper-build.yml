@@ -52,6 +52,12 @@ jobs:
           jar tf "$JAR" | grep -q 'com/wickidcow/aetherlegacy/paper/world/FaeRegionProfile.class'
           jar tf "$JAR" | grep -q 'com/wickidcow/aetherlegacy/paper/world/FaeDungeonGenerator.class'
           jar tf "$JAR" | grep -q 'com/wickidcow/aetherlegacy/paper/loot/FaeDungeonLootListener.class'
+          jar tf "$JAR" | grep -q 'com/wickidcow/aetherlegacy/paper/world/FaeFloraPopulator.class'
+          jar tf "$JAR" | grep -q 'com/wickidcow/aetherlegacy/paper/world/FaePlane.class'
+          jar tf "$JAR" | grep -q 'com/wickidcow/aetherlegacy/paper/world/FaeDimensionManager.class'
+          jar tf "$JAR" | grep -q 'com/wickidcow/aetherlegacy/paper/world/FaePlaneFeaturePopulator.class'
+          jar tf "$JAR" | grep -q 'com/wickidcow/aetherlegacy/paper/world/FaeRiftPopulator.class'
+          jar tf "$JAR" | grep -q 'com/wickidcow/aetherlegacy/paper/portal/FaeRiftListener.class'
           echo "jar=$JAR" >> "$GITHUB_OUTPUT"
           echo "jar_name=$(basename "$JAR")" >> "$GITHUB_OUTPUT"
 
@@ -66,11 +72,13 @@ jobs:
       - name: Publish artifact summary
         run: |
           {
-            echo '# 🧚 The Fae Realm — Raw JAR'
+            echo '# 🧚 The Fae Realm v8 — Raw JAR'
             echo
-            echo '✅ Paper 26.2 / Java 25 build and JAR verification passed.'
+            echo '✅ Paper 26.2 / Java 25 build and v8 JAR verification passed.'
             echo
             echo "Artifact file: **${{ steps.candidate.outputs.jar_name }}**"
+            echo
+            echo 'Verified: living ecology, linked planes, signature decorators, and Fae rift travel classes.'
             echo
             echo 'The Actions artifact contains the raw **.jar** without ZIP extraction.'
           } >> "$GITHUB_STEP_SUMMARY"
