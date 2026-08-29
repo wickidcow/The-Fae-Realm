@@ -5,7 +5,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 import java.util.Locale;
 
 /**
- * Immutable generator settings captured when the Fae Realm world is created.
+ * Immutable generator settings captured when a Fae world is created.
  * World-generation settings require a restart because Minecraft binds a generator
  * instance to the world for the lifetime of that server session.
  */
@@ -93,6 +93,68 @@ public record FaeGeneratorSettings(
             config.getBoolean("worldgen.structures", true),
             config.getBoolean("worldgen.resources", true)
         );
+    }
+
+    /**
+     * Creates a tuned settings snapshot for a linked Fae plane while preserving the
+     * administrator's base generator configuration and layer toggles.
+     */
+    public FaeGeneratorSettings forPlane(FaePlane plane) {
+        if (plane == null || plane == FaePlane.REALM) {
+            return this;
+        }
+
+        return switch (plane) {
+            case REALM -> this;
+            case WILDBLOOM -> new FaeGeneratorSettings(
+                preset,
+                clamp(islandDensity * 1.22, 0.25, 1.75),
+                clamp(verticalScale * 0.90, 0.50, 1.80),
+                clamp(caveDensity * 0.88, 0.20, 1.80),
+                Math.max(66, Math.min(92, cloudLevel + 5)),
+                terrainProfiles,
+                clamp(decorationDensity * 1.70, 0.0, 2.5),
+                clamp(resourceDensity * 1.08, 0.0, 2.5),
+                Math.max(8, Math.min(24, structureSpacingChunks + 2)),
+                clamp(dungeonChance * 0.75, 0.0, 0.50),
+                clouds,
+                decorations,
+                structures,
+                resources
+            );
+            case GLOAM -> new FaeGeneratorSettings(
+                preset,
+                clamp(islandDensity * 0.90, 0.25, 1.75),
+                clamp(verticalScale * 0.84, 0.50, 1.80),
+                clamp(caveDensity * 1.52, 0.20, 1.80),
+                Math.max(48, Math.min(76, cloudLevel - 10)),
+                terrainProfiles,
+                clamp(decorationDensity * 1.18, 0.0, 2.5),
+                clamp(resourceDensity * 1.24, 0.0, 2.5),
+                Math.max(6, structureSpacingChunks - 1),
+                clamp(dungeonChance + 0.10, 0.0, 0.50),
+                clouds,
+                decorations,
+                structures,
+                resources
+            );
+            case STARFALL -> new FaeGeneratorSettings(
+                preset,
+                clamp(islandDensity * 0.82, 0.25, 1.75),
+                clamp(verticalScale * 1.42, 0.50, 1.80),
+                clamp(caveDensity * 1.12, 0.20, 1.80),
+                Math.max(48, Math.min(82, cloudLevel - 4)),
+                terrainProfiles,
+                clamp(decorationDensity * 0.88, 0.0, 2.5),
+                clamp(resourceDensity * 1.62, 0.0, 2.5),
+                Math.max(6, structureSpacingChunks - 1),
+                clamp(dungeonChance + 0.04, 0.0, 0.50),
+                clouds,
+                decorations,
+                structures,
+                resources
+            );
+        };
     }
 
     private static double numericOverride(FileConfiguration config, String path, double fallback) {
