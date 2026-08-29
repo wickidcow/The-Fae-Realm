@@ -11,17 +11,12 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 
-/** Configurable handling for players who fall beneath Fae Realm islands. */
+/** Configurable handling for players who fall beneath any Fae plane. */
 public final class FaeVoidListener implements Listener {
 
     private final AetherLegacyPlugin plugin;
     private final AetherPortalListener portalListener;
 
-    /**
-     * Compatibility constructor used by the plugin entry point. The lightweight
-     * portal helper reads the same persistent return-location key as the registered
-     * portal listener, so void rescue survives restarts and disconnects.
-     */
     public FaeVoidListener(AetherLegacyPlugin plugin) {
         this(plugin, new AetherPortalListener(plugin));
     }
@@ -35,7 +30,7 @@ public final class FaeVoidListener implements Listener {
     public void onVoidDamage(EntityDamageEvent event) {
         if (event.getCause() != EntityDamageEvent.DamageCause.VOID
             || !(event.getEntity() instanceof Player player)
-            || !player.getWorld().equals(plugin.getAetherWorld())) {
+            || !plugin.isFaeWorld(player.getWorld())) {
             return;
         }
 
@@ -46,9 +41,11 @@ public final class FaeVoidListener implements Listener {
 
         event.setCancelled(true);
         if (behavior.equalsIgnoreCase("fae-spawn")) {
-            player.teleport(plugin.getAetherArrivalLocation(), PlayerTeleportEvent.TeleportCause.PLUGIN);
+            FaePlane plane = plugin.getFaePlane(player.getWorld());
+            player.teleport(plugin.getFaeArrivalLocation(plane), PlayerTeleportEvent.TeleportCause.PLUGIN);
             player.sendMessage(Component.text(
-                "The Fae winds carry you back to safety.", NamedTextColor.LIGHT_PURPLE));
+                "The Fae winds carry you back to safety in " + plane.displayName() + ".",
+                NamedTextColor.LIGHT_PURPLE));
             return;
         }
 
