@@ -19,6 +19,20 @@ world:
   weather-cycle: true
   mob-spawning: true
 
+# The central Fae Realm is the nexus. These linked planes use the same generator
+# engine with tuned terrain/ecology profiles instead of maintaining separate forks.
+dimensions:
+  enabled: true
+  wildbloom:
+    enabled: true
+    world-name: fae_realm_wildbloom
+  gloam:
+    enabled: true
+    world-name: fae_realm_gloam
+  starfall:
+    enabled: true
+    world-name: fae_realm_starfall
+
 portal:
   enabled: true
   auto-activate: true
@@ -73,6 +87,6 @@ progression:
 
 integrations:
   betterstructures:
-    # Keep generic BetterStructures packs out of Fae Realm by default.
+    # Keep generic BetterStructures packs out of every Fae plane by default.
     # A dedicated Fae Realm structure pack can opt in later.
     allow-generic-structures-in-fae-realm: false
