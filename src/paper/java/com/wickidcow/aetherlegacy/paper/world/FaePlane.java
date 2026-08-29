@@ -60,4 +60,21 @@ public enum FaePlane {
         }
         return null;
     }
+
+    public static FaePlane fromWorldName(String worldName) {
+        if (worldName == null) {
+            return REALM;
+        }
+        String normalized = worldName.toLowerCase(Locale.ROOT);
+        if (normalized.endsWith(WILDBLOOM.worldSuffix)) {
+            return WILDBLOOM;
+        }
+        if (normalized.endsWith(GLOAM.worldSuffix)) {
+            return GLOAM;
+        }
+        if (normalized.endsWith(STARFALL.worldSuffix)) {
+            return STARFALL;
+        }
+        return REALM;
+    }
 }
