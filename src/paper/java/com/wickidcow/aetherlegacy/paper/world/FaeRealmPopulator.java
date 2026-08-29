@@ -19,6 +19,7 @@ public final class FaeRealmPopulator extends BlockPopulator {
     private static final FaeFeaturePopulator FEATURES = new FaeFeaturePopulator();
     private static final FaeFloraPopulator FLORA = new FaeFloraPopulator();
     private static final FaePlaneFeaturePopulator PLANE_FEATURES = new FaePlaneFeaturePopulator();
+    private static final FaeRiftPopulator RIFTS = new FaeRiftPopulator();
     private static final FaeUndersideGenerator UNDERSIDE = new FaeUndersideGenerator();
 
     private final FaeGeneratorSettings settings;
@@ -47,8 +48,6 @@ public final class FaeRealmPopulator extends BlockPopulator {
         if (settings.decorations() && settings.decorationDensity() > 0.0) {
             UNDERSIDE.populate(worldInfo, chunkX, chunkZ, region, settings);
 
-            // Ordinary ecology is shared across all planes. Plane settings determine
-            // density, while the signature pass below adds dimension-specific identity.
             FLORA.populate(
                 worldInfo,
                 chunkX,
@@ -73,6 +72,13 @@ public final class FaeRealmPopulator extends BlockPopulator {
                 settings.decorationDensity());
 
             PLANE_FEATURES.populate(
+                worldInfo,
+                chunkX,
+                chunkZ,
+                region,
+                settings.decorationDensity());
+
+            RIFTS.populate(
                 worldInfo,
                 chunkX,
                 chunkZ,
