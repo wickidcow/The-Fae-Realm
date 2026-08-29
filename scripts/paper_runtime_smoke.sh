@@ -173,6 +173,14 @@ assert_plane_logs() {
             return 1
         fi
     done
+
+    for world_name in "${FAE_WORLDS[@]}"; do
+        if ! grep -Fq "Async-safe Fae populator registry active for ${world_name} (" "$console_log"; then
+            echo "Paper runtime smoke ${label}: async-safe populator registry was not activated for ${world_name}." >&2
+            cat "$console_log" >&2 || true
+            return 1
+        fi
+    done
 }
 
 run_cycle() {
@@ -342,6 +350,7 @@ Generator metadata present for all planes: yes
 Generator version: ${EXPECTED_GENERATOR_VERSION}
 Terrain profiles persisted: yes
 Settings provenance persisted: yes
+Async-safe populator registry: pass (4 / 4 worlds)
 Console /fae info: pass
 Console /fae planes: pass
 Console /fae locate: pass
