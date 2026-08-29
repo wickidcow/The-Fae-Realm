@@ -1,12 +1,23 @@
 package com.wickidcow.aetherlegacy.paper.world;
 
 import org.bukkit.Material;
+import org.bukkit.World;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.world.WorldInitEvent;
 import org.bukkit.generator.BlockPopulator;
 import org.bukkit.generator.LimitedRegion;
 import org.bukkit.generator.WorldInfo;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.List;
 import java.util.Random;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Thread-safe decoration pass for the Fae worlds.
@@ -21,6 +32,7 @@ public final class FaeRealmPopulator extends BlockPopulator {
     private static final FaePlaneFeaturePopulator PLANE_FEATURES = new FaePlaneFeaturePopulator();
     private static final FaeRiftPopulator RIFTS = new FaeRiftPopulator();
     private static final FaeUndersideGenerator UNDERSIDE = new FaeUndersideGenerator();
+    private static final AtomicBoolean POPULATOR_SAFETY_HOOK_REGISTERED = new AtomicBoolean();
 
     private final FaeGeneratorSettings settings;
 
@@ -30,6 +42,7 @@ public final class FaeRealmPopulator extends BlockPopulator {
 
     public FaeRealmPopulator(@NotNull FaeGeneratorSettings settings) {
         this.settings = settings;
+        ensurePopulatorSafetyHook();
     }
 
     @Override
@@ -89,6 +102,104 @@ public final class FaeRealmPopulator extends BlockPopulator {
         if (settings.structures()) {
             STRUCTURES.populate(worldInfo, random, chunkX, chunkZ, region, settings);
         }
+    }
+
+    /**
+     * Paper 26.2 executes BlockPopulators from async chunk-generation workers while
+     * CraftWorld exposes the registry as a mutable ArrayList. If any plugin mutates
+     * that list while Paper is iterating it, ArrayList throws ConcurrentModificationException
+     * and Moonrise escalates the failed FEATURES task into a full server shutdown.
+     *
+     * <p>The hook is registered while Bukkit is collecting this generator's default
+     * populators. WorldInitEvent fires after those defaults are installed but before
+     * normal spawn-chunk generation, which gives us a safe main-thread point to replace
+     * only Fae worlds' registry with a CopyOnWriteArrayList. Other plugins can keep using
+     * World#getPopulators normally without invalidating active worldgen iterators.</p>
+     */
+    private static void ensurePopulatorSafetyHook() {
+        if (!POPULATOR_SAFETY_HOOK_REGISTERED.compareAndSet(false, true)) {
+            return;
+        }
+
+        JavaPlugin plugin;
+        try {
+            plugin = JavaPlugin.getProvidingPlugin(FaeRealmPopulator.class);
+        } catch (RuntimeException exception) {
+            POPULATOR_SAFETY_HOOK_REGISTERED.set(false);
+            return;
+        }
+
+        try {
+            plugin.getServer().getPluginManager().registerEvents(new Listener() {
+                @EventHandler(priority = EventPriority.LOWEST)
+                public void onWorldInit(WorldInitEvent event) {
+                    World world = event.getWorld();
+                    if (world.getGenerator() instanceof AetherChunkGenerator) {
+                        stabilizePopulatorRegistry(plugin, world);
+                    }
+                }
+            }, plugin);
+        } catch (RuntimeException exception) {
+            POPULATOR_SAFETY_HOOK_REGISTERED.set(false);
+            plugin.getLogger().warning(
+                "Could not register Fae async-populator safety hook: " + exception.getMessage());
+        }
+    }
+
+    private static void stabilizePopulatorRegistry(JavaPlugin plugin, World world) {
+        List<BlockPopulator> current = world.getPopulators();
+        if (current instanceof CopyOnWriteArrayList<?>) {
+            plugin.getLogger().info(
+                "Async-safe Fae populator registry active for " + world.getName()
+                    + " (" + current.size() + " populator(s)).");
+            return;
+        }
+
+        try {
+            Field field = findPopulatorField(world, current);
+            if (field == null) {
+                plugin.getLogger().warning(
+                    "Could not locate Paper's populator registry field for Fae world "
+                        + world.getName() + "; async registry guard is unavailable.");
+                return;
+            }
+
+            CopyOnWriteArrayList<BlockPopulator> replacement = new CopyOnWriteArrayList<>(current);
+            field.set(world, replacement);
+
+            if (world.getPopulators() != replacement) {
+                plugin.getLogger().warning(
+                    "Paper rejected the async-safe populator registry replacement for Fae world "
+                        + world.getName() + ".");
+                return;
+            }
+
+            plugin.getLogger().info(
+                "Async-safe Fae populator registry active for " + world.getName()
+                    + " (" + replacement.size() + " populator(s)).");
+        } catch (ReflectiveOperationException | RuntimeException exception) {
+            plugin.getLogger().warning(
+                "Could not stabilize Paper's populator registry for Fae world "
+                    + world.getName() + ": " + exception.getClass().getSimpleName()
+                    + ": " + exception.getMessage());
+        }
+    }
+
+    private static Field findPopulatorField(World world, List<BlockPopulator> current)
+        throws IllegalAccessException {
+        for (Class<?> type = world.getClass(); type != null; type = type.getSuperclass()) {
+            for (Field field : type.getDeclaredFields()) {
+                if (Modifier.isStatic(field.getModifiers())
+                    || !List.class.isAssignableFrom(field.getType())
+                    || !field.trySetAccessible()) {
+                    continue;
+                }
+                if (field.get(world) == current) {
+                    return field;
+                }
+            }
+        }
+        return null;
     }
 
     private double scaledChance(double baseChance, double density) {
