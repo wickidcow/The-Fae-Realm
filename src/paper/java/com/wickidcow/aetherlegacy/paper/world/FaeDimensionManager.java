@@ -2,6 +2,7 @@ package com.wickidcow.aetherlegacy.paper.world;
 
 import com.wickidcow.aetherlegacy.paper.AetherLegacyPlugin;
 import com.wickidcow.aetherlegacy.paper.integration.BetterStructuresIntegration;
+import com.wickidcow.aetherlegacy.paper.portal.FaeRiftListener;
 import org.bukkit.Bukkit;
 import org.bukkit.GameRules;
 import org.bukkit.Location;
@@ -13,9 +14,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.EnumMap;
 import java.util.Map;
 
-/**
- * Owns the linked Fae planes while keeping them on one shared generator engine.
- */
+/** Owns the linked Fae planes while keeping them on one shared generator engine. */
 public final class FaeDimensionManager {
 
     private final AetherLegacyPlugin plugin;
@@ -53,6 +52,8 @@ public final class FaeDimensionManager {
                 worlds.put(plane, world);
             }
         }
+
+        plugin.getServer().getPluginManager().registerEvents(new FaeRiftListener(plugin), plugin);
     }
 
     private @Nullable World loadPlane(FaePlane plane) {
@@ -140,15 +141,14 @@ public final class FaeDimensionManager {
             world.getBlockAt(corner[0], y + 1, corner[1]).setType(light, false);
         }
 
-        if (plane == FaePlane.WILDBLOOM) {
-            world.getBlockAt(0, y, 0).setType(Material.FLOWERING_AZALEA, false);
-        } else if (plane == FaePlane.GLOAM) {
-            world.getBlockAt(0, y, 0).setType(Material.SCULK, false);
-        } else if (plane == FaePlane.STARFALL) {
-            world.getBlockAt(0, y, 0).setType(Material.AMETHYST_CLUSTER, false);
-        }
+        Material marker = FaeRiftPopulator.marker(plane);
+        world.getBlockAt(0, y, 0).setType(Material.LODESTONE, false);
+        world.getBlockAt(1, y, 0).setType(marker, false);
+        world.getBlockAt(-1, y, 0).setType(marker, false);
+        world.getBlockAt(0, y, 1).setType(marker, false);
+        world.getBlockAt(0, y, -1).setType(marker, false);
 
-        world.setSpawnLocation(new Location(world, 0.5, y + 1, 0.5, 180.0f, 0.0f));
+        world.setSpawnLocation(new Location(world, 0.5, y, 2.5, 180.0f, 0.0f));
     }
 
     public @Nullable World world(FaePlane plane) {
