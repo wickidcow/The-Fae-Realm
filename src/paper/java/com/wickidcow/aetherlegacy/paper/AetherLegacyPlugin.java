@@ -6,8 +6,10 @@ import com.wickidcow.aetherlegacy.paper.loot.FaeDungeonLootListener;
 import com.wickidcow.aetherlegacy.paper.portal.AetherPortalListener;
 import com.wickidcow.aetherlegacy.paper.progression.FaeProgressionListener;
 import com.wickidcow.aetherlegacy.paper.world.AetherChunkGenerator;
+import com.wickidcow.aetherlegacy.paper.world.FaeDimensionManager;
 import com.wickidcow.aetherlegacy.paper.world.FaeGeneratorSettings;
 import com.wickidcow.aetherlegacy.paper.world.FaeGeneratorVersion;
+import com.wickidcow.aetherlegacy.paper.world.FaePlane;
 import com.wickidcow.aetherlegacy.paper.world.FaeRegionLocator;
 import com.wickidcow.aetherlegacy.paper.world.FaeVoidListener;
 import com.wickidcow.aetherlegacy.paper.world.FaeWorldMetadata;
@@ -25,6 +27,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Locale;
@@ -37,6 +40,7 @@ public final class AetherLegacyPlugin extends JavaPlugin {
     private AetherChunkGenerator generator;
     private AetherPortalListener portalListener;
     private BetterStructuresIntegration betterStructuresIntegration;
+    private FaeDimensionManager dimensionManager;
     private World aetherWorld;
 
     @Override
@@ -66,6 +70,14 @@ public final class AetherLegacyPlugin extends JavaPlugin {
         }
         FaeWorldMetadata.record(this, aetherWorld, generatorSettings);
 
+        dimensionManager = new FaeDimensionManager(
+            this,
+            betterStructuresIntegration,
+            generatorSettings,
+            worldName);
+        dimensionManager.registerMain(aetherWorld);
+        dimensionManager.loadSecondaryPlanes();
+
         FaeItems faeItems = new FaeItems(this);
         portalListener = new AetherPortalListener(this);
         getServer().getPluginManager().registerEvents(portalListener, this);
@@ -83,21 +95,24 @@ public final class AetherLegacyPlugin extends JavaPlugin {
         getLogger().info(getRealmDisplayName() + " active: generator v"
             + FaeGeneratorVersion.CURRENT + " / "
             + generatorSettings.preset().name().toLowerCase(Locale.ROOT)
-            + ", floating continents, terrain profiles, regional biomes, resources, Fae structures, vaults, progression, portals, and /fae travel.");
+            + ", floating continents, living ecology, linked Fae planes, regional biomes, resources, Fae structures, vaults, progression, portals, and /fae travel.");
     }
 
     private boolean handleCommand(CommandSender sender, String[] args) {
         if (args.length == 0) {
-            if (!(sender instanceof Player player)) {
-                sender.sendMessage("Use /fae info or /fae help from the console.");
-                return true;
-            }
-            portalListener.rememberReturn(player, player.getLocation());
-            player.teleport(getAetherArrivalLocation());
-            return true;
+            return handlePlaneTravel(sender, FaePlane.REALM);
+        }
+
+        FaePlane directPlane = FaePlane.parse(args[0]);
+        if (directPlane != null) {
+            return handlePlaneTravel(sender, directPlane);
         }
 
         return switch (args[0].toLowerCase(Locale.ROOT)) {
+            case "planes" -> {
+                sendPlanes(sender);
+                yield true;
+            }
             case "info" -> {
                 sendInfo(sender);
                 yield true;
@@ -115,7 +130,7 @@ public final class AetherLegacyPlugin extends JavaPlugin {
                 reloadConfig();
                 configureRealm(aetherWorld);
                 sender.sendMessage(Component.text(
-                    "Fae Realm configuration reloaded. Generator, world-name, and integration-mode changes require a restart.",
+                    "Fae Realm configuration reloaded. Generator, linked-plane, world-name, and integration changes require a restart.",
                     NamedTextColor.GREEN));
                 yield true;
             }
@@ -133,16 +148,17 @@ public final class AetherLegacyPlugin extends JavaPlugin {
                     sender.sendMessage("This command must be run by a player.");
                     yield true;
                 }
-                if (!player.getWorld().equals(aetherWorld)) {
+                if (!isFaeWorld(player.getWorld())) {
                     player.sendMessage(Component.text(
-                        "Enter the Fae Realm to inspect its region.", NamedTextColor.YELLOW));
+                        "Enter a Fae plane to inspect its region.", NamedTextColor.YELLOW));
                     yield true;
                 }
                 Location location = player.getLocation();
                 var biome = AetherChunkGenerator.biomeAt(
-                    aetherWorld.getSeed(), location.getBlockX(), location.getBlockZ());
+                    player.getWorld().getSeed(), location.getBlockX(), location.getBlockZ());
+                FaePlane plane = getFaePlane(player.getWorld());
                 player.sendMessage(Component.text(
-                    "Fae region: " + prettyName(biome.name()), NamedTextColor.AQUA));
+                    plane.displayName() + " region: " + prettyName(biome.name()), NamedTextColor.AQUA));
                 yield true;
             }
             default -> {
@@ -151,6 +167,30 @@ public final class AetherLegacyPlugin extends JavaPlugin {
                 yield true;
             }
         };
+    }
+
+    private boolean handlePlaneTravel(CommandSender sender, FaePlane plane) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage("Fae plane travel must be run by a player.");
+            return true;
+        }
+
+        World target = getFaeWorld(plane);
+        if (target == null) {
+            player.sendMessage(Component.text(
+                plane.displayName() + " is not enabled on this server.", NamedTextColor.YELLOW));
+            return true;
+        }
+
+        if (!isFaeWorld(player.getWorld())) {
+            portalListener.rememberReturn(player, player.getLocation());
+        }
+
+        player.teleport(getFaeArrivalLocation(plane));
+        player.sendMessage(Component.text(
+            "You pass through the veil into " + plane.displayName() + ".",
+            plane == FaePlane.GLOAM ? NamedTextColor.DARK_PURPLE : NamedTextColor.LIGHT_PURPLE));
+        return true;
     }
 
     private boolean handleLocate(CommandSender sender, String[] args) {
@@ -172,15 +212,17 @@ public final class AetherLegacyPlugin extends JavaPlugin {
             return true;
         }
 
+        World searchWorld = aetherWorld;
         int originX = 0;
         int originZ = 0;
-        if (sender instanceof Player player && player.getWorld().equals(aetherWorld)) {
+        if (sender instanceof Player player && isFaeWorld(player.getWorld())) {
+            searchWorld = player.getWorld();
             originX = player.getLocation().getBlockX();
             originZ = player.getLocation().getBlockZ();
         }
 
         var result = FaeRegionLocator.findNearest(
-            aetherWorld.getSeed(), originX, originZ, target, 4096);
+            searchWorld.getSeed(), originX, originZ, target, 4096);
         if (result == null) {
             sender.sendMessage(Component.text(
                 "No " + prettyName(target.name()) + " sample was found within 4096 blocks.",
@@ -189,13 +231,29 @@ public final class AetherLegacyPlugin extends JavaPlugin {
         }
 
         sender.sendMessage(Component.text(
-            "Nearest " + prettyName(target.name()) + " region sample: X " + result.x()
+            "Nearest " + prettyName(target.name()) + " region sample in "
+                + getFaePlane(searchWorld).displayName() + ": X " + result.x()
                 + ", Z " + result.z() + " (~" + result.distance() + " blocks).",
             NamedTextColor.AQUA));
         sender.sendMessage(Component.text(
             "The locator does not generate chunks; the exact sample can be open sky even though the surrounding region identity is correct.",
             NamedTextColor.GRAY));
         return true;
+    }
+
+    private void sendPlanes(CommandSender sender) {
+        sender.sendMessage(Component.text("Linked Fae planes", NamedTextColor.LIGHT_PURPLE));
+        for (FaePlane plane : FaePlane.values()) {
+            World world = getFaeWorld(plane);
+            if (world != null) {
+                FaeGeneratorSettings settings = generatorSettings.forPlane(plane);
+                sender.sendMessage(Component.text(
+                    plane.displayName() + " — " + world.getName()
+                        + " | islands x" + String.format(Locale.ROOT, "%.2f", settings.islandDensity())
+                        + " | flora x" + String.format(Locale.ROOT, "%.2f", settings.decorationDensity()),
+                    NamedTextColor.AQUA));
+            }
+        }
     }
 
     private void sendInfo(CommandSender sender) {
@@ -222,22 +280,41 @@ public final class AetherLegacyPlugin extends JavaPlugin {
                 + String.format(Locale.ROOT, "%.0f%%", generatorSettings.dungeonChance() * 100.0),
             NamedTextColor.GRAY));
         sender.sendMessage(Component.text(
+            "Linked planes: " + loadedPlaneCount() + " / " + FaePlane.values().length,
+            NamedTextColor.GRAY));
+        sender.sendMessage(Component.text(
             "BetterStructures: " + betterStructuresIntegration.status(), NamedTextColor.GRAY));
         sender.sendMessage(Component.text("Paper target: 26.2 / Java 25", NamedTextColor.GRAY));
+    }
+
+    private int loadedPlaneCount() {
+        int count = 0;
+        for (FaePlane plane : FaePlane.values()) {
+            if (getFaeWorld(plane) != null) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private void sendHelp(CommandSender sender) {
         sender.sendMessage(Component.text("The Fae Realm commands", NamedTextColor.LIGHT_PURPLE));
         sender.sendMessage(Component.text("/fae — enter the Fae Realm", NamedTextColor.AQUA));
         sender.sendMessage(Component.text(
-            "/fae return — return to your saved portal location", NamedTextColor.AQUA));
+            "/fae wildbloom | gloam | starfall — enter a linked Fae plane", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text(
+            "/fae realm — return to the central Fae Realm without losing your mortal return point", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text(
+            "/fae planes — list loaded Fae planes and their worldgen character", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text(
+            "/fae return — return to your saved mortal-world location", NamedTextColor.AQUA));
         sender.sendMessage(Component.text(
             "/fae biome — show the current Fae region", NamedTextColor.AQUA));
         sender.sendMessage(Component.text(
             "/fae info — show generator settings and integration status", NamedTextColor.AQUA));
         if (isAdmin(sender)) {
             sender.sendMessage(Component.text(
-                "/fae locate <region> — locate a region without generating chunks", NamedTextColor.YELLOW));
+                "/fae locate <region> — locate a region in your current Fae plane", NamedTextColor.YELLOW));
             sender.sendMessage(Component.text(
                 "/fae reload — reload non-generator settings", NamedTextColor.YELLOW));
         }
@@ -246,8 +323,8 @@ public final class AetherLegacyPlugin extends JavaPlugin {
     private List<String> tabComplete(CommandSender sender, String[] args) {
         if (args.length == 1) {
             List<String> choices = isAdmin(sender)
-                ? List.of("return", "info", "biome", "locate", "reload", "help")
-                : List.of("return", "info", "biome", "help");
+                ? List.of("realm", "wildbloom", "gloam", "starfall", "planes", "return", "info", "biome", "locate", "reload", "help")
+                : List.of("realm", "wildbloom", "gloam", "starfall", "planes", "return", "info", "biome", "help");
             String prefix = args[0].toLowerCase(Locale.ROOT);
             return choices.stream().filter(value -> value.startsWith(prefix)).toList();
         }
@@ -330,6 +407,33 @@ public final class AetherLegacyPlugin extends JavaPlugin {
         return Objects.requireNonNull(aetherWorld, "Fae Realm is not loaded");
     }
 
+    public @Nullable World getFaeWorld(FaePlane plane) {
+        if (dimensionManager == null) {
+            return plane == FaePlane.REALM ? aetherWorld : null;
+        }
+        return dimensionManager.world(plane);
+    }
+
+    public boolean isFaeWorld(World world) {
+        if (world == null) {
+            return false;
+        }
+        if (dimensionManager == null) {
+            return world.equals(aetherWorld);
+        }
+        return dimensionManager.isFaeWorld(world);
+    }
+
+    public @NotNull FaePlane getFaePlane(World world) {
+        if (dimensionManager != null) {
+            FaePlane plane = dimensionManager.planeOf(world);
+            if (plane != null) {
+                return plane;
+            }
+        }
+        return FaePlane.REALM;
+    }
+
     public @NotNull String getRealmDisplayName() {
         return getConfig().getString("world.display-name", "Fae Realm");
     }
@@ -339,6 +443,13 @@ public final class AetherLegacyPlugin extends JavaPlugin {
      * edits cannot teleport players to an unbuilt Y level.
      */
     public @NotNull Location getAetherArrivalLocation() {
+        return getFaeArrivalLocation(FaePlane.REALM);
+    }
+
+    public @NotNull Location getFaeArrivalLocation(FaePlane plane) {
+        if (dimensionManager != null) {
+            return dimensionManager.arrival(plane);
+        }
         Location spawn = getAetherWorld().getSpawnLocation().clone();
         spawn.setYaw(180.0f);
         spawn.setPitch(0.0f);
@@ -347,15 +458,24 @@ public final class AetherLegacyPlugin extends JavaPlugin {
 
     public @NotNull Location getDefaultReturnLocation() {
         for (World world : Bukkit.getWorlds()) {
-            if (!world.equals(aetherWorld) && world.getEnvironment() == World.Environment.NORMAL) {
+            if (!isFaeWorld(world) && world.getEnvironment() == World.Environment.NORMAL) {
                 return world.getSpawnLocation().clone().add(0.5, 0.0, 0.5);
             }
         }
-        return Bukkit.getWorlds().getFirst().getSpawnLocation().clone().add(0.5, 0.0, 0.5);
+        for (World world : Bukkit.getWorlds()) {
+            if (!isFaeWorld(world)) {
+                return world.getSpawnLocation().clone().add(0.5, 0.0, 0.5);
+            }
+        }
+        return getAetherWorld().getSpawnLocation().clone().add(0.5, 0.0, 0.5);
     }
 
     @Override
     public ChunkGenerator getDefaultWorldGenerator(@NotNull String worldName, String id) {
-        return generator == null ? new AetherChunkGenerator() : generator;
+        FaePlane plane = FaePlane.fromWorldName(worldName);
+        FaeGeneratorSettings settings = generatorSettings == null
+            ? FaeGeneratorSettings.defaults()
+            : generatorSettings.forPlane(plane);
+        return new AetherChunkGenerator(settings);
     }
 }
