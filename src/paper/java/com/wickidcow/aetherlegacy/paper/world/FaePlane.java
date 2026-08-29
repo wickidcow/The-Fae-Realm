@@ -1,12 +1,16 @@
 package com.wickidcow.aetherlegacy.paper.world;
 
 import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public enum FaePlane {
     REALM("realm", "Fae Realm", ""),
     WILDBLOOM("wildbloom", "Wildbloom", "_wildbloom"),
     GLOAM("gloam", "Gloam", "_gloam"),
     STARFALL("starfall", "Starfall", "_starfall");
+
+    private static final Map<String, FaePlane> WORLD_IDENTITIES = new ConcurrentHashMap<>();
 
     private final String id;
     private final String displayName;
@@ -61,11 +65,21 @@ public enum FaePlane {
         return null;
     }
 
+    public static void registerWorldName(String worldName, FaePlane plane) {
+        if (worldName != null && !worldName.isBlank() && plane != null) {
+            WORLD_IDENTITIES.put(worldName.toLowerCase(Locale.ROOT), plane);
+        }
+    }
+
     public static FaePlane fromWorldName(String worldName) {
         if (worldName == null) {
             return REALM;
         }
         String normalized = worldName.toLowerCase(Locale.ROOT);
+        FaePlane registered = WORLD_IDENTITIES.get(normalized);
+        if (registered != null) {
+            return registered;
+        }
         if (normalized.endsWith(WILDBLOOM.worldSuffix)) {
             return WILDBLOOM;
         }
