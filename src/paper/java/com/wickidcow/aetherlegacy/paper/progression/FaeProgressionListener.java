@@ -18,7 +18,7 @@ import java.util.Arrays;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
-/** Lightweight realm progression hooks that remain entirely server-side. */
+/** Lightweight Fae progression hooks that remain entirely server-side. */
 public final class FaeProgressionListener implements Listener {
 
     private static final Set<Material> ESSENCE_SOURCES = Set.of(
@@ -45,7 +45,7 @@ public final class FaeProgressionListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onRealmResourcePlace(BlockPlaceEvent event) {
         Block block = event.getBlockPlaced();
-        if (!block.getWorld().equals(plugin.getAetherWorld())
+        if (!plugin.isFaeWorld(block.getWorld())
             || !ESSENCE_SOURCES.contains(block.getType())) {
             return;
         }
@@ -56,7 +56,7 @@ public final class FaeProgressionListener implements Listener {
     public void onRealmResourceBreak(BlockBreakEvent event) {
         Block block = event.getBlock();
         if (!plugin.getConfig().getBoolean("progression.enabled", true)
-            || !block.getWorld().equals(plugin.getAetherWorld())
+            || !plugin.isFaeWorld(block.getWorld())
             || !ESSENCE_SOURCES.contains(block.getType())) {
             return;
         }

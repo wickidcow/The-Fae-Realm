@@ -18,9 +18,9 @@ import java.util.SplittableRandom;
  *
  * <p>The generator is fully server-side and uses only vanilla block states. A broad
  * macro-noise field groups islands into denser archipelagos and quieter open-sky
- * regions, while per-island noise controls irregular coastlines, vertical relief,
- * caverns and regional palettes. Optional island profiles add plateaus, spires,
- * terraces and hollow landmasses without requiring client-side content.</p>
+ * regions, while hierarchical region profiles influence island silhouettes, relief,
+ * caverns and ecology. Optional island profiles add plateaus, spires, terraces and
+ * hollow landmasses without requiring client-side content.</p>
  */
 public final class AetherChunkGenerator extends ChunkGenerator {
 
@@ -88,7 +88,8 @@ public final class AetherChunkGenerator extends ChunkGenerator {
                     continue;
                 }
 
-                FaeRealmBiome biome = biomeAt(seed, worldX, worldZ);
+                FaeRegionProfile profile = regionProfileAt(seed, worldX, worldZ);
+                FaeRealmBiome biome = profile.biome();
                 chunkData.setBlock(localX, top, localZ, biome.surface());
                 for (int depth = 1; depth <= 3; depth++) {
                     int y = top - depth;
@@ -98,7 +99,7 @@ public final class AetherChunkGenerator extends ChunkGenerator {
                 }
 
                 if (settings.decorations()) {
-                    placeSurfaceDetails(chunkData, seed, biome, worldX, top, worldZ, localX, localZ);
+                    placeSurfaceDetails(chunkData, seed, profile, worldX, top, worldZ, localX, localZ);
                 }
             }
         }
@@ -164,34 +165,41 @@ public final class AetherChunkGenerator extends ChunkGenerator {
 
                 int centerX = cellX * CELL_SIZE + cellRandom.nextInt(20, CELL_SIZE - 20);
                 int centerZ = cellZ * CELL_SIZE + cellRandom.nextInt(20, CELL_SIZE - 20);
-                IslandProfile profile = chooseProfile(worldSeed, cellX, cellZ);
+                FaeRegionProfile regionProfile = regionProfileAt(worldSeed, centerX, centerZ);
+                IslandProfile profile = chooseProfile(worldSeed, cellX, cellZ, regionProfile);
 
                 int rawCenterY = cellRandom.nextInt(MIN_ISLAND_Y, MAX_ISLAND_Y + 1);
                 int midpoint = (MIN_ISLAND_Y + MAX_ISLAND_Y) / 2;
                 int scaledY = midpoint + (int) Math.round((rawCenterY - midpoint) * settings.verticalScale());
                 int macroLift = (int) Math.round(macro * 13.0 * settings.verticalScale());
-                int centerY = clampInt(WORLD_MIN_ISLAND_Y, WORLD_MAX_ISLAND_Y, scaledY + macroLift);
+                int regionalLift = (int) Math.round(regionProfile.heightOffset() * settings.verticalScale());
+                int centerY = clampInt(
+                    WORLD_MIN_ISLAND_Y,
+                    WORLD_MAX_ISLAND_Y,
+                    scaledY + macroLift + regionalLift);
 
                 int radius = clampInt(22, MAX_RADIUS,
-                    cellRandom.nextInt(26, 65) + (int) Math.round(macro * 12.0));
-                int thickness = clampInt(12, 34,
-                    cellRandom.nextInt(14, 30) + (int) Math.round(macro01 * 5.0));
+                    (int) Math.round((cellRandom.nextInt(26, 65) + (macro * 12.0))
+                        * regionProfile.radiusMultiplier()));
+                int thickness = clampInt(12, 38,
+                    (int) Math.round((cellRandom.nextInt(14, 30) + (macro01 * 5.0))
+                        * regionProfile.thicknessMultiplier()));
                 double warp = 0.78 + cellRandom.nextDouble() * 0.48;
 
                 switch (profile) {
                     case PLATEAU -> {
                         radius = clampInt(28, MAX_RADIUS, radius + 9);
-                        thickness = clampInt(14, 36, thickness + 2);
+                        thickness = clampInt(14, 38, thickness + 2);
                     }
                     case SPIRE -> {
                         radius = clampInt(18, 58, radius - 7);
-                        thickness = clampInt(17, 40, thickness + 6);
+                        thickness = clampInt(17, 42, thickness + 6);
                         centerY = clampInt(WORLD_MIN_ISLAND_Y, WORLD_MAX_ISLAND_Y, centerY + 8);
                     }
                     case TERRACED -> radius = clampInt(26, MAX_RADIUS, radius + 4);
                     case HOLLOW -> {
                         radius = clampInt(26, MAX_RADIUS, radius + 6);
-                        thickness = clampInt(18, 40, thickness + 5);
+                        thickness = clampInt(18, 42, thickness + 5);
                     }
                     case BALANCED -> {
                         // Base dimensions already represent the balanced profile.
@@ -202,8 +210,8 @@ public final class AetherChunkGenerator extends ChunkGenerator {
                     islands.add(new Island(centerX, centerZ, centerY, radius, thickness, warp, profile));
                 }
 
-                double localSatelliteChance = clamp(0.05, 0.78,
-                    baseSatelliteChance * (0.72 + macro01 * 0.58));
+                double localSatelliteChance = clamp(0.05, 0.82,
+                    baseSatelliteChance * (0.72 + macro01 * 0.58) * regionProfile.satelliteMultiplier());
                 int satelliteCount = cellRandom.nextDouble() < localSatelliteChance ? 1 : 0;
                 if (satelliteCount > 0 && macro01 > 0.72 && cellRandom.nextDouble() < 0.28) {
                     satelliteCount++;
@@ -214,8 +222,9 @@ public final class AetherChunkGenerator extends ChunkGenerator {
                     int satelliteZ = centerZ + cellRandom.nextInt(-72, 73);
                     int satelliteY = centerY + cellRandom.nextInt(-18, 19);
                     int satelliteRadius = cellRandom.nextInt(10, 24);
-                    IslandProfile satelliteProfile = settings.terrainProfiles() && cellRandom.nextInt(5) == 0
-                        ? IslandProfile.SPIRE
+                    FaeRegionProfile satelliteRegion = regionProfileAt(worldSeed, satelliteX, satelliteZ);
+                    IslandProfile satelliteProfile = settings.terrainProfiles()
+                        ? chooseProfileFor(satelliteRegion, cellRandom.nextInt(100))
                         : IslandProfile.BALANCED;
                     if (intersects(minX, maxX, minZ, maxZ, satelliteX, satelliteZ, satelliteRadius)) {
                         islands.add(new Island(
@@ -234,26 +243,78 @@ public final class AetherChunkGenerator extends ChunkGenerator {
         return islands;
     }
 
-    private IslandProfile chooseProfile(long worldSeed, int cellX, int cellZ) {
+    private IslandProfile chooseProfile(long worldSeed,
+                                        int cellX,
+                                        int cellZ,
+                                        FaeRegionProfile regionProfile) {
         if (!settings.terrainProfiles()) {
             return IslandProfile.BALANCED;
         }
         SplittableRandom profileRandom = new SplittableRandom(
             mixSeed(worldSeed ^ PROFILE_SALT, cellX, cellZ));
-        int roll = profileRandom.nextInt(100);
-        if (roll < 34) {
-            return IslandProfile.BALANCED;
+        return chooseProfileFor(regionProfile, profileRandom.nextInt(100));
+    }
+
+    private IslandProfile chooseProfileFor(FaeRegionProfile regionProfile, int roll) {
+        if (regionProfile.anomaly() == FaeRegionProfile.Anomaly.STARFALL) {
+            if (roll < 10) return IslandProfile.BALANCED;
+            if (roll < 18) return IslandProfile.PLATEAU;
+            if (roll < 52) return IslandProfile.SPIRE;
+            if (roll < 80) return IslandProfile.TERRACED;
+            return IslandProfile.HOLLOW;
         }
-        if (roll < 53) {
-            return IslandProfile.PLATEAU;
+        if (regionProfile.anomaly() == FaeRegionProfile.Anomaly.GLOAM) {
+            if (roll < 23) return IslandProfile.BALANCED;
+            if (roll < 31) return IslandProfile.PLATEAU;
+            if (roll < 37) return IslandProfile.SPIRE;
+            if (roll < 63) return IslandProfile.TERRACED;
+            return IslandProfile.HOLLOW;
         }
-        if (roll < 69) {
-            return IslandProfile.SPIRE;
+        if (regionProfile.anomaly() == FaeRegionProfile.Anomaly.WILDBLOOM) {
+            if (roll < 38) return IslandProfile.BALANCED;
+            if (roll < 70) return IslandProfile.PLATEAU;
+            if (roll < 77) return IslandProfile.SPIRE;
+            if (roll < 94) return IslandProfile.TERRACED;
+            return IslandProfile.HOLLOW;
         }
-        if (roll < 85) {
-            return IslandProfile.TERRACED;
-        }
-        return IslandProfile.HOLLOW;
+
+        return switch (regionProfile.biome()) {
+            case GOLDEN_MEADOWS -> {
+                if (roll < 35) yield IslandProfile.BALANCED;
+                if (roll < 74) yield IslandProfile.PLATEAU;
+                if (roll < 79) yield IslandProfile.SPIRE;
+                if (roll < 93) yield IslandProfile.TERRACED;
+                yield IslandProfile.HOLLOW;
+            }
+            case CRYSTAL_WOODS -> {
+                if (roll < 24) yield IslandProfile.BALANCED;
+                if (roll < 33) yield IslandProfile.PLATEAU;
+                if (roll < 48) yield IslandProfile.SPIRE;
+                if (roll < 79) yield IslandProfile.TERRACED;
+                yield IslandProfile.HOLLOW;
+            }
+            case MIST_GARDENS -> {
+                if (roll < 27) yield IslandProfile.BALANCED;
+                if (roll < 37) yield IslandProfile.PLATEAU;
+                if (roll < 44) yield IslandProfile.SPIRE;
+                if (roll < 64) yield IslandProfile.TERRACED;
+                yield IslandProfile.HOLLOW;
+            }
+            case ANCIENT_FAE_FOREST -> {
+                if (roll < 32) yield IslandProfile.BALANCED;
+                if (roll < 44) yield IslandProfile.PLATEAU;
+                if (roll < 50) yield IslandProfile.SPIRE;
+                if (roll < 80) yield IslandProfile.TERRACED;
+                yield IslandProfile.HOLLOW;
+            }
+            case SKY_HIGHLANDS -> {
+                if (roll < 18) yield IslandProfile.BALANCED;
+                if (roll < 30) yield IslandProfile.PLATEAU;
+                if (roll < 68) yield IslandProfile.SPIRE;
+                if (roll < 93) yield IslandProfile.TERRACED;
+                yield IslandProfile.HOLLOW;
+            }
+        };
     }
 
     private void carveIsland(ChunkData chunkData, long seed, Island island, int chunkMinX, int chunkMinZ) {
@@ -286,8 +347,12 @@ public final class AetherChunkGenerator extends ChunkGenerator {
                     worldX * 0.024, worldZ * 0.024, 4, 2.05, 0.5);
                 double ridge = Math.abs(FaeNoise.fractal(seed ^ 0x7F4A7C15L,
                     worldX * 0.011, worldZ * 0.011, 3, 2.0, 0.5));
+                double fracture = FaeNoise.ridged(seed ^ 0x3C6EF372FE94F82BL,
+                    worldX * 0.016, worldZ * 0.016, 3, 2.0, 0.52);
+                FaeRegionProfile regionProfile = regionProfileAt(seed, worldX, worldZ);
 
-                int topY = island.y() + profileRelief(island.profile(), edge, terrainNoise, ridge);
+                int topY = island.y() + profileRelief(
+                    island.profile(), edge, terrainNoise, ridge, fracture, regionProfile);
                 double depthMultiplier = switch (island.profile()) {
                     case SPIRE -> 1.20;
                     case HOLLOW -> 1.14;
@@ -302,9 +367,10 @@ public final class AetherChunkGenerator extends ChunkGenerator {
                 topY = Math.min(topY, maxHeight);
                 bottomY = Math.max(bottomY, minHeight);
 
-                FaeRealmBiome biome = biomeAt(seed, worldX, worldZ);
+                FaeRealmBiome biome = regionProfile.biome();
                 for (int y = bottomY; y <= topY; y++) {
-                    if (isCavern(seed, worldX, y, worldZ, topY, bottomY, edge, island.profile())) {
+                    if (isCavern(
+                        seed, worldX, y, worldZ, topY, bottomY, edge, island.profile(), regionProfile)) {
                         continue;
                     }
 
@@ -324,7 +390,12 @@ public final class AetherChunkGenerator extends ChunkGenerator {
         }
     }
 
-    private int profileRelief(IslandProfile profile, double edge, double terrainNoise, double ridge) {
+    private int profileRelief(IslandProfile profile,
+                              double edge,
+                              double terrainNoise,
+                              double ridge,
+                              double fracture,
+                              FaeRegionProfile regionProfile) {
         double vertical = settings.verticalScale();
         double relief = switch (profile) {
             case BALANCED -> edge * 7.0 * Math.min(1.35, vertical)
@@ -346,12 +417,33 @@ public final class AetherChunkGenerator extends ChunkGenerator {
                 + terrainNoise * 6.2 * vertical
                 + ridge * edge * 4.0 * vertical;
         };
+
+        relief *= regionProfile.reliefMultiplier();
+        double fractureBand = Math.max(0.0, fracture - 0.48) / 0.52;
+        relief += fractureBand * regionProfile.fractureStrength() * edge * 8.0 * vertical;
+
+        if (regionProfile.anomaly() == FaeRegionProfile.Anomaly.STARFALL) {
+            relief += ridge * ridge * edge * 5.0 * vertical;
+        } else if (regionProfile.anomaly() == FaeRegionProfile.Anomaly.GLOAM) {
+            relief -= (1.0 - ridge) * edge * 2.0;
+        }
+
         return (int) Math.round(relief);
     }
 
-    private boolean isCavern(long seed, int worldX, int y, int worldZ,
-                             int topY, int bottomY, double edge, IslandProfile profile) {
+    private boolean isCavern(long seed,
+                             int worldX,
+                             int y,
+                             int worldZ,
+                             int topY,
+                             int bottomY,
+                             double edge,
+                             IslandProfile profile,
+                             FaeRegionProfile regionProfile) {
         double minimumEdge = profile == IslandProfile.HOLLOW ? 0.20 : 0.28;
+        if (regionProfile.subregion() == FaeRegionProfile.Subregion.MOSSBOUND_HOLLOWS) {
+            minimumEdge -= 0.03;
+        }
         if (edge < minimumEdge || y > topY - 5 || y < bottomY + 3) {
             return false;
         }
@@ -368,8 +460,9 @@ public final class AetherChunkGenerator extends ChunkGenerator {
             case TERRACED -> 0.01;
             case BALANCED -> 0.0;
         };
-        threshold = clamp(0.36, 0.72, threshold);
-        return cave > threshold && vertical > 0.22 && vertical < 0.78;
+        threshold += regionProfile.caveThresholdOffset();
+        threshold = clamp(0.32, 0.74, threshold);
+        return cave > threshold && vertical > 0.20 && vertical < 0.80;
     }
 
     private void generateCloudShelf(ChunkData chunkData, long seed, int chunkMinX, int chunkMinZ) {
@@ -394,8 +487,14 @@ public final class AetherChunkGenerator extends ChunkGenerator {
         }
     }
 
-    private void placeSurfaceDetails(ChunkData chunkData, long seed, FaeRealmBiome biome,
-                                     int worldX, int topY, int worldZ, int localX, int localZ) {
+    private void placeSurfaceDetails(ChunkData chunkData,
+                                     long seed,
+                                     FaeRegionProfile profile,
+                                     int worldX,
+                                     int topY,
+                                     int worldZ,
+                                     int localX,
+                                     int localZ) {
         int detailY = topY + 1;
         if (detailY >= chunkData.getMaxHeight()) {
             return;
@@ -403,8 +502,15 @@ public final class AetherChunkGenerator extends ChunkGenerator {
 
         long hash = mixSeed(seed ^ 0x3C6EF372FE94F82BL, worldX, worldZ);
         int roll = (int) Math.floorMod(hash, 1000L);
+        FaeRealmBiome biome = profile.biome();
 
-        if (roll < 11) {
+        if (profile.anomaly() == FaeRegionProfile.Anomaly.STARFALL && roll < 5) {
+            chunkData.setBlock(localX, detailY, localZ, Material.AMETHYST_CLUSTER);
+        } else if (profile.anomaly() == FaeRegionProfile.Anomaly.GLOAM && roll < 5) {
+            chunkData.setBlock(localX, detailY, localZ, Material.WITHER_ROSE);
+        } else if (profile.anomaly() == FaeRegionProfile.Anomaly.WILDBLOOM && roll < 8) {
+            chunkData.setBlock(localX, detailY, localZ, Material.PINK_PETALS);
+        } else if (roll < 11) {
             chunkData.setBlock(localX, detailY, localZ, biome.accent());
         } else if (roll < 15 && biome == FaeRealmBiome.GOLDEN_MEADOWS) {
             chunkData.setBlock(localX, detailY, localZ, Material.SUNFLOWER);
@@ -416,21 +522,11 @@ public final class AetherChunkGenerator extends ChunkGenerator {
     }
 
     public static FaeRealmBiome biomeAt(long seed, int worldX, int worldZ) {
-        double broad = FaeNoise.fractal(seed ^ 0x510E527FADE682D1L,
-            worldX * 0.0042, worldZ * 0.0042, 3, 2.0, 0.5);
-        double secondary = FaeNoise.fractal(seed ^ 0x9B05688C2B3E6C1FL,
-            worldX * 0.0067, worldZ * 0.0067, 2, 2.0, 0.5);
+        return regionProfileAt(seed, worldX, worldZ).biome();
+    }
 
-        if (broad < -0.42) {
-            return FaeRealmBiome.MIST_GARDENS;
-        }
-        if (broad < -0.08) {
-            return secondary > 0.18 ? FaeRealmBiome.CRYSTAL_WOODS : FaeRealmBiome.GOLDEN_MEADOWS;
-        }
-        if (broad < 0.33) {
-            return secondary < -0.16 ? FaeRealmBiome.ANCIENT_FAE_FOREST : FaeRealmBiome.CRYSTAL_WOODS;
-        }
-        return secondary > 0.15 ? FaeRealmBiome.SKY_HIGHLANDS : FaeRealmBiome.ANCIENT_FAE_FOREST;
+    public static FaeRegionProfile regionProfileAt(long seed, int worldX, int worldZ) {
+        return FaeRegionProfile.at(seed, worldX, worldZ);
     }
 
     private int highestSolid(ChunkData chunkData, int localX, int localZ) {
