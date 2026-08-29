@@ -9,7 +9,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Random;
 
 /**
- * Thread-safe decoration pass for the Fae Realm.
+ * Thread-safe decoration pass for the Fae worlds.
  * Uses LimitedRegion only, so it is safe for Paper's asynchronous chunk generation.
  */
 public final class FaeRealmPopulator extends BlockPopulator {
@@ -18,6 +18,7 @@ public final class FaeRealmPopulator extends BlockPopulator {
     private static final FaeResourcePopulator RESOURCES = new FaeResourcePopulator();
     private static final FaeFeaturePopulator FEATURES = new FaeFeaturePopulator();
     private static final FaeFloraPopulator FLORA = new FaeFloraPopulator();
+    private static final FaePlaneFeaturePopulator PLANE_FEATURES = new FaePlaneFeaturePopulator();
     private static final FaeUndersideGenerator UNDERSIDE = new FaeUndersideGenerator();
 
     private final FaeGeneratorSettings settings;
@@ -46,9 +47,8 @@ public final class FaeRealmPopulator extends BlockPopulator {
         if (settings.decorations() && settings.decorationDensity() > 0.0) {
             UNDERSIDE.populate(worldInfo, chunkX, chunkZ, region, settings);
 
-            // The ecology pass is deterministic and deliberately much denser than the
-            // old one-to-three vanilla-shaped tree attempts. It owns ordinary plants,
-            // twisted regional trees, roots, hanging growth and glowing/crystal accents.
+            // Ordinary ecology is shared across all planes. Plane settings determine
+            // density, while the signature pass below adds dimension-specific identity.
             FLORA.populate(
                 worldInfo,
                 chunkX,
@@ -67,6 +67,13 @@ public final class FaeRealmPopulator extends BlockPopulator {
             FEATURES.populate(
                 worldInfo,
                 random,
+                chunkX,
+                chunkZ,
+                region,
+                settings.decorationDensity());
+
+            PLANE_FEATURES.populate(
+                worldInfo,
                 chunkX,
                 chunkZ,
                 region,
@@ -140,11 +147,6 @@ public final class FaeRealmPopulator extends BlockPopulator {
         setIfInside(region, x, y + pillarHeight + 1, z, Material.SOUL_LANTERN);
     }
 
-    /**
-     * Searches for the actual Fae surface instead of blindly trusting the highest
-     * heightmap entry. This makes decoration resilient to cloud blocks and to details
-     * already placed during the surface pass.
-     */
     private int findFaeSurface(WorldInfo info,
                                LimitedRegion region,
                                int x,
