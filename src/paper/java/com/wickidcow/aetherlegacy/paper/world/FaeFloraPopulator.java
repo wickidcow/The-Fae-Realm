@@ -32,21 +32,10 @@ public final class FaeFloraPopulator {
         int baseX = chunkX << 4;
         int baseZ = chunkZ << 4;
 
-        int groundAttempts = scaledAttempts(18 + random.nextInt(11), density, random);
-        for (int i = 0; i < groundAttempts; i++) {
-            int x = baseX + random.nextInt(16);
-            int z = baseZ + random.nextInt(16);
-            int surfaceY = region.getHighestBlockYAt(x, z);
-            if (!isFaeSurface(info, region, x, surfaceY, z)) {
-                continue;
-            }
-            placeGroundGrowth(info, region, random, x, surfaceY + 1, z);
-        }
-
+        // Place the larger tree silhouettes before understory so ground plants
+        // cannot become the highest block and accidentally suppress a tree site.
         int treeAttempts = scaledAttempts(2 + random.nextInt(4), density, random);
         for (int i = 0; i < treeAttempts; i++) {
-            // Keep the trunk away from the central chunk edge. The crown may use
-            // LimitedRegion's generation buffer, but never assumes it exists.
             int x = baseX + 3 + random.nextInt(10);
             int z = baseZ + 3 + random.nextInt(10);
             int surfaceY = region.getHighestBlockYAt(x, z);
@@ -73,6 +62,27 @@ public final class FaeFloraPopulator {
                 case SKY_HIGHLANDS -> placeWindBirch(region, random, x, y, z);
             }
         }
+
+        int groundAttempts = scaledAttempts(18 + random.nextInt(11), density, random);
+        for (int i = 0; i < groundAttempts; i++) {
+            int x = baseX + random.nextInt(16);
+            int z = baseZ + random.nextInt(16);
+            int surfaceY = region.getHighestBlockYAt(x, z);
+            if (!isFaeSurface(info, region, x, surfaceY, z)) {
+                continue;
+            }
+            placeGroundGrowth(info, region, random, x, surfaceY + 1, z);
+        }
+    }
+
+    private double treeChance(FaeRealmBiome biome) {
+        return switch (biome) {
+            case GOLDEN_MEADOWS -> 0.38;
+            case CRYSTAL_WOODS -> 0.78;
+            case MIST_GARDENS -> 0.62;
+            case ANCIENT_FAE_FOREST -> 0.90;
+            case SKY_HIGHLANDS -> 0.48;
+        };
     }
 
     private boolean isFaeSurface(WorldInfo info, LimitedRegion region, int x, int y, int z) {
@@ -113,7 +123,6 @@ public final class FaeFloraPopulator {
                 Material.OXEYE_DAISY, Material.FERN, Material.PINK_PETALS);
         };
 
-        // Hanging moss needs a ceiling, so use carpet when this is an open surface.
         if (material == Material.PALE_HANGING_MOSS) {
             material = Material.PALE_MOSS_CARPET;
         }
@@ -254,7 +263,8 @@ public final class FaeFloraPopulator {
         for (int i = 0; i < 5; i++) {
             int ox = random.nextInt(-3, 4);
             int oz = random.nextInt(-3, 4);
-            setIfAir(region, x + ox, y, z + oz, random.nextBoolean() ? Material.FERN : Material.MOSS_CARPET);
+            setIfAir(region, x + ox, y, z + oz,
+                random.nextBoolean() ? Material.FERN : Material.MOSS_CARPET);
         }
     }
 
@@ -294,7 +304,10 @@ public final class FaeFloraPopulator {
                              int count,
                              int minLength,
                              int maxLength) {
-        int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {-1, -1}, {1, -1}, {-1, 1}};
+        int[][] directions = {
+            {1, 0}, {-1, 0}, {0, 1}, {0, -1},
+            {1, 1}, {-1, -1}, {1, -1}, {-1, 1}
+        };
         for (int branch = 0; branch < count; branch++) {
             int[] direction = directions[random.nextInt(directions.length)];
             int length = minLength + random.nextInt(maxLength - minLength + 1);
