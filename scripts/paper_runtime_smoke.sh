@@ -164,6 +164,11 @@ run_cycle() {
     grep -Eq 'Enabling TheFaeRealm v|The Fae Realm .* enabled on Minecraft' "$console_log" || {
         echo "Paper runtime smoke ${label}: The Fae Realm was not observed enabling." >&2; return 1;
     }
+    grep -Fq 'Installed concurrent BlockPopulator guard for fae_realm' "$console_log" || {
+        echo "Paper runtime smoke ${label}: Chunky concurrency guard was not installed." >&2
+        cat "$console_log" >&2 || true
+        return 1
+    }
     grep -Fq 'Generator: v8 / radiant_end' "$console_log" || {
         echo "Paper runtime smoke ${label}: /fae info did not report generator v8/radiant_end." >&2; return 1;
     }
@@ -212,6 +217,7 @@ Preset: radiant_end
 Radiant End layout: yes
 Growth ecology: 1.45
 Landmark spacing: 28 chunks
+Chunky concurrency guard: installed
 Console /fae info: pass
 Console /fae locate: pass
 Second boot loaded persisted realm: yes
