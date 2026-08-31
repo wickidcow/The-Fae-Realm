@@ -15,10 +15,12 @@ import java.util.Random;
 public final class FaeRealmPopulator extends BlockPopulator {
 
     private static final FaeStructurePopulator STRUCTURES = new FaeStructurePopulator();
+    private static final FaeLandmarkPopulator LANDMARKS = new FaeLandmarkPopulator();
     private static final FaeResourcePopulator RESOURCES = new FaeResourcePopulator();
     private static final FaeFeaturePopulator FEATURES = new FaeFeaturePopulator();
     private static final FaeUndersideGenerator UNDERSIDE = new FaeUndersideGenerator();
     private static final FaeFloraPopulator FLORA = new FaeFloraPopulator();
+    private static final FaeGrowthPopulator GROWTH = new FaeGrowthPopulator();
 
     private final FaeGeneratorSettings settings;
 
@@ -43,28 +45,39 @@ public final class FaeRealmPopulator extends BlockPopulator {
             RESOURCES.populate(worldInfo, chunkX, chunkZ, region, settings.resourceDensity());
         }
 
-        if (settings.decorations() && settings.decorationDensity() > 0.0) {
-            UNDERSIDE.populate(worldInfo, chunkX, chunkZ, region, settings);
-            FLORA.populate(worldInfo, chunkX, chunkZ, region, settings);
+        boolean landmarkPlaced = false;
+        if (settings.decorations()) {
+            if (settings.decorationDensity() > 0.0) {
+                UNDERSIDE.populate(worldInfo, chunkX, chunkZ, region, settings);
+                FLORA.populate(worldInfo, chunkX, chunkZ, region, settings);
 
-            if (random.nextDouble() < scaledChance(1.0 / 9.0, settings.decorationDensity())) {
-                placeCrystalOutcrop(worldInfo, region, random, baseX, baseZ);
+                if (random.nextDouble() < scaledChance(1.0 / 9.0, settings.decorationDensity())) {
+                    placeCrystalOutcrop(worldInfo, region, random, baseX, baseZ);
+                }
+
+                if (random.nextDouble() < scaledChance(1.0 / 96.0, settings.decorationDensity())) {
+                    placeFaeRuin(worldInfo, region, random, baseX, baseZ);
+                }
             }
 
-            if (random.nextDouble() < scaledChance(1.0 / 96.0, settings.decorationDensity())) {
-                placeFaeRuin(worldInfo, region, random, baseX, baseZ);
+            if (settings.growthDensity() > 0.0) {
+                GROWTH.populate(worldInfo, chunkX, chunkZ, region, settings);
             }
 
-            FEATURES.populate(
-                worldInfo,
-                random,
-                chunkX,
-                chunkZ,
-                region,
-                settings.decorationDensity());
+            landmarkPlaced = LANDMARKS.populate(worldInfo, chunkX, chunkZ, region, settings);
+
+            if (!landmarkPlaced && settings.decorationDensity() > 0.0) {
+                FEATURES.populate(
+                    worldInfo,
+                    random,
+                    chunkX,
+                    chunkZ,
+                    region,
+                    settings.decorationDensity());
+            }
         }
 
-        if (settings.structures()) {
+        if (settings.structures() && !landmarkPlaced) {
             STRUCTURES.populate(worldInfo, random, chunkX, chunkZ, region, settings);
         }
     }
