@@ -36,7 +36,7 @@ public final class FaeWorldMetadata {
         if (previousFingerprint != null && !previousFingerprint.equals(currentFingerprint)) {
             plugin.getLogger().warning(
                 "Fae Realm generator settings changed since the previous boot. Existing chunks are preserved; "
-                    + "newly explored chunks will use the current preset/density/structure settings.");
+                    + "newly explored chunks will use the current preset/density/growth/structure settings.");
         }
 
         if (!metadata.contains("first-generator-version")) {
@@ -52,9 +52,12 @@ public final class FaeWorldMetadata {
             metadata.set("first-settings.vertical-scale", settings.verticalScale());
             metadata.set("first-settings.cave-density", settings.caveDensity());
             metadata.set("first-settings.terrain-profiles", settings.terrainProfiles());
+            metadata.set("first-settings.radiant-end-layout", settings.radiantEndLayout());
+            metadata.set("first-settings.growth-density", settings.growthDensity());
             metadata.set("first-settings.decoration-density", settings.decorationDensity());
             metadata.set("first-settings.resource-density", settings.resourceDensity());
             metadata.set("first-settings.structure-spacing-chunks", settings.structureSpacingChunks());
+            metadata.set("first-settings.landmark-spacing-chunks", settings.landmarkSpacingChunks());
             metadata.set("first-settings.dungeon-chance", settings.dungeonChance());
         }
 
@@ -65,9 +68,12 @@ public final class FaeWorldMetadata {
         metadata.set("current-vertical-scale", settings.verticalScale());
         metadata.set("current-cave-density", settings.caveDensity());
         metadata.set("terrain-profiles", settings.terrainProfiles());
+        metadata.set("radiant-end-layout", settings.radiantEndLayout());
+        metadata.set("growth-density", settings.growthDensity());
         metadata.set("decoration-density", settings.decorationDensity());
         metadata.set("resource-density", settings.resourceDensity());
         metadata.set("structure-spacing-chunks", settings.structureSpacingChunks());
+        metadata.set("landmark-spacing-chunks", settings.landmarkSpacingChunks());
         metadata.set("dungeon-chance", settings.dungeonChance());
         metadata.set("plugin-version", plugin.getPluginMeta().getVersion());
         metadata.set("world-name", world.getName());
@@ -81,16 +87,19 @@ public final class FaeWorldMetadata {
 
     private static String fingerprint(FaeGeneratorSettings settings) {
         return String.format(Locale.ROOT,
-            "%s|%.5f|%.5f|%.5f|%d|%s|%.5f|%.5f|%d|%.5f|%s|%s|%s|%s",
+            "%s|%.5f|%.5f|%.5f|%d|%s|%s|%.5f|%.5f|%.5f|%d|%d|%.5f|%s|%s|%s|%s",
             settings.preset().name(),
             settings.islandDensity(),
             settings.verticalScale(),
             settings.caveDensity(),
             settings.cloudLevel(),
             settings.terrainProfiles(),
+            settings.radiantEndLayout(),
+            settings.growthDensity(),
             settings.decorationDensity(),
             settings.resourceDensity(),
             settings.structureSpacingChunks(),
+            settings.landmarkSpacingChunks(),
             settings.dungeonChance(),
             settings.clouds(),
             settings.decorations(),
