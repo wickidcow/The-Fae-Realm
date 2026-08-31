@@ -10,7 +10,6 @@ load: POSTWORLD
 # The generator must be enabled before Multiverse-Core so an existing/imported
 # fae_realm keeps TheFaeRealm as its generator across restarts.
 loadbefore: [Multiverse-Core]
-softdepend: [BetterStructures]
 commands:
   fae:
     aliases: [faerealm, aether]
