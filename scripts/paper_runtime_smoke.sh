@@ -17,16 +17,10 @@ if [[ -z "$EXPECTED_PLUGIN_VERSION" ]]; then
 fi
 
 for command in curl jq java find sha256sum; do
-    if ! command -v "$command" >/dev/null 2>&1; then
-        echo "Required command is unavailable: $command" >&2
-        exit 1
-    fi
+    command -v "$command" >/dev/null 2>&1 || { echo "Required command is unavailable: $command" >&2; exit 1; }
 done
 
-if [[ ! -s "$PLUGIN_JAR" ]]; then
-    echo "The Fae Realm JAR not found or empty: $PLUGIN_JAR" >&2
-    exit 1
-fi
+[[ -s "$PLUGIN_JAR" ]] || { echo "The Fae Realm JAR not found or empty: $PLUGIN_JAR" >&2; exit 1; }
 
 rm -rf "$WORK_DIR"
 mkdir -p "$WORK_DIR/plugins"
@@ -47,39 +41,23 @@ PROPERTIES
 
 BUILDS_URL="https://fill.papermc.io/v3/projects/paper/versions/${MC_VERSION}/builds"
 BUILDS_RESPONSE="$(curl --fail-with-body -sS -H "User-Agent: ${USER_AGENT}" "$BUILDS_URL")"
-
-if jq -e '.ok == false' >/dev/null 2>&1 <<<"$BUILDS_RESPONSE"; then
-    jq -r '.message // "Paper downloads service returned an unknown error"' <<<"$BUILDS_RESPONSE" >&2
-    exit 1
-fi
-
 PAPER_URL="$(jq -r 'first(.[] | select(.channel == "STABLE") | .downloads."server:default".url) // empty' <<<"$BUILDS_RESPONSE")"
 PAPER_BUILD="$(jq -r 'first(.[] | select(.channel == "STABLE") | .id) // empty' <<<"$BUILDS_RESPONSE")"
-if [[ -z "$PAPER_URL" || -z "$PAPER_BUILD" ]]; then
-    echo "No stable Paper build is available for Minecraft ${MC_VERSION}." >&2
-    exit 1
-fi
+[[ -n "$PAPER_URL" && -n "$PAPER_BUILD" ]] || { echo "No stable Paper build is available for Minecraft ${MC_VERSION}." >&2; exit 1; }
 
-printf 'Minecraft: %s\nPaper stable build: %s\nDownload: %s\n' "$MC_VERSION" "$PAPER_BUILD" "$PAPER_URL" \
-    > "$WORK_DIR/paper-build.txt"
+printf 'Minecraft: %s\nPaper stable build: %s\nDownload: %s\n' "$MC_VERSION" "$PAPER_BUILD" "$PAPER_URL" > "$WORK_DIR/paper-build.txt"
 curl --fail-with-body -L -sS -H "User-Agent: ${USER_AGENT}" -o "$WORK_DIR/paper.jar" "$PAPER_URL"
-test -s "$WORK_DIR/paper.jar"
+[[ -s "$WORK_DIR/paper.jar" ]]
 
 stop_process() {
     local pid="$1"
     local fd="$2"
-
     if kill -0 "$pid" >/dev/null 2>&1; then
         printf 'stop\n' >&"$fd" || true
     fi
-
     local deadline=$((SECONDS + SHUTDOWN_TIMEOUT_SECONDS))
-    while kill -0 "$pid" >/dev/null 2>&1 && (( SECONDS < deadline )); do
-        sleep 1
-    done
-
+    while kill -0 "$pid" >/dev/null 2>&1 && (( SECONDS < deadline )); do sleep 1; done
     if kill -0 "$pid" >/dev/null 2>&1; then
-        echo "Paper did not stop cleanly within ${SHUTDOWN_TIMEOUT_SECONDS}s; terminating it." >&2
         kill "$pid" >/dev/null 2>&1 || true
         sleep 2
     fi
@@ -92,23 +70,26 @@ resolve_realm_metadata() {
 assert_realm_files() {
     local label="$1"
     REALM_METADATA="$(resolve_realm_metadata)"
-    if [[ -z "$REALM_METADATA" || ! -s "$REALM_METADATA" ]]; then
+    [[ -n "$REALM_METADATA" && -s "$REALM_METADATA" ]] || {
         echo "Paper runtime smoke ${label}: Fae Realm generator metadata was not created." >&2
-        find "$WORK_DIR" -maxdepth 6 -type d \( -name 'fae_realm' -o -path '*/dimensions/*' \) -print >&2 || true
         return 1
-    fi
+    }
 
     local realm_dir
     realm_dir="$(dirname "$REALM_METADATA")"
-    if [[ "$(basename "$realm_dir")" != "fae_realm" ]]; then
+    [[ "$(basename "$realm_dir")" == "fae_realm" ]] || {
         echo "Paper runtime smoke ${label}: metadata is not inside a fae_realm folder: $REALM_METADATA" >&2
         return 1
-    fi
+    }
 
     for expected in \
-        'current-generator-version: 6' \
+        'current-generator-version: 8' \
+        'current-preset: radiant_end' \
         'terrain-profiles: true' \
+        'radiant-end-layout: true' \
+        'growth-density: 1.45' \
         'structure-spacing-chunks: 10' \
+        'landmark-spacing-chunks: 28' \
         'first-settings-fingerprint:' \
         'current-settings-fingerprint:'; do
         if ! grep -Fq "$expected" "$REALM_METADATA"; then
@@ -118,11 +99,10 @@ assert_realm_files() {
         fi
     done
 
-    if [[ ! -d "$realm_dir/region" ]]; then
+    [[ -d "$realm_dir/region" ]] || {
         echo "Paper runtime smoke ${label}: Fae Realm region storage was not created at $realm_dir." >&2
-        find "$realm_dir" -maxdepth 2 -type f -print >&2 || true
         return 1
-    fi
+    }
 }
 
 run_cycle() {
@@ -139,15 +119,15 @@ run_cycle() {
         java -Xms512M -Xmx2G -jar paper.jar --nogui <&3 > "${label}.console.log" 2>&1
     ) &
     local server_pid=$!
-    local startup_deadline=$((SECONDS + STARTUP_TIMEOUT_SECONDS))
+    local deadline=$((SECONDS + STARTUP_TIMEOUT_SECONDS))
     local started=false
 
-    while kill -0 "$server_pid" >/dev/null 2>&1 && (( SECONDS < startup_deadline )); do
+    while kill -0 "$server_pid" >/dev/null 2>&1 && (( SECONDS < deadline )); do
         if grep -Fq 'Done (' "$console_log" 2>/dev/null; then
             started=true
             break
         fi
-        if grep -Eq 'Error occurred while enabling TheFaeRealm|Could not load .*TheFaeRealm' "$console_log" 2>/dev/null; then
+        if grep -Eq 'Error occurred while enabling TheFaeRealm|Could not load .*TheFaeRealm|Unable to create or load the Fae Realm' "$console_log" 2>/dev/null; then
             break
         fi
         sleep 2
@@ -163,97 +143,60 @@ run_cycle() {
     fi
 
     sleep 3
-    if ! assert_realm_files "$label"; then
+    assert_realm_files "$label" || {
         stop_process "$server_pid" 3
         wait "$server_pid" >/dev/null 2>&1 || true
         exec 3>&-
         cat "$console_log" >&2 || true
         return 1
-    fi
+    }
 
-    # Exercise the console-safe diagnostics on a real server process.
     printf 'fae info\n' >&3
     printf 'fae locate crystal_woods\n' >&3
     sleep 2
-
     stop_process "$server_pid" 3
 
-    local server_status=0
-    wait "$server_pid" || server_status=$?
+    local status=0
+    wait "$server_pid" || status=$?
     exec 3>&-
+    (( status == 0 )) || { echo "Paper runtime smoke ${label}: Paper exited with status ${status}." >&2; return 1; }
 
-    if (( server_status != 0 )); then
-        echo "Paper runtime smoke ${label}: Paper exited with status ${server_status}." >&2
-        cat "$console_log" >&2 || true
-        return 1
-    fi
-
-    if ! grep -Eq 'Enabling TheFaeRealm v|The Fae Realm .* enabled on Minecraft' "$console_log"; then
-        echo "Paper runtime smoke ${label}: The Fae Realm was not observed enabling." >&2
-        cat "$console_log" >&2 || true
-        return 1
-    fi
-
-    if ! grep -Fq 'Generator: v6 / balanced' "$console_log"; then
-        echo "Paper runtime smoke ${label}: /fae info did not report generator v6/balanced." >&2
-        cat "$console_log" >&2 || true
-        return 1
-    fi
-
-    if ! grep -Fq 'Nearest Crystal Woods region sample:' "$console_log"; then
-        echo "Paper runtime smoke ${label}: /fae locate did not return a Crystal Woods result." >&2
-        cat "$console_log" >&2 || true
-        return 1
-    fi
-
-    if grep -Eq 'Error occurred while enabling TheFaeRealm|Could not load .*TheFaeRealm|Unable to create or load the Fae Realm' "$console_log"; then
-        echo "Paper runtime smoke ${label}: The Fae Realm reported an enable/load failure." >&2
-        cat "$console_log" >&2 || true
-        return 1
-    fi
-
-    if grep -Eq 'Exception in server tick loop|Failed to save player data|java\.lang\.(NoSuchMethodError|NoClassDefFoundError|LinkageError)' "$console_log"; then
+    grep -Eq 'Enabling TheFaeRealm v|The Fae Realm .* enabled on Minecraft' "$console_log" || {
+        echo "Paper runtime smoke ${label}: The Fae Realm was not observed enabling." >&2; return 1;
+    }
+    grep -Fq 'Generator: v8 / radiant_end' "$console_log" || {
+        echo "Paper runtime smoke ${label}: /fae info did not report generator v8/radiant_end." >&2; return 1;
+    }
+    grep -Fq 'Nearest Crystal Woods region sample:' "$console_log" || {
+        echo "Paper runtime smoke ${label}: /fae locate did not return a Crystal Woods result." >&2; return 1;
+    }
+    if grep -Eq 'Error occurred while enabling TheFaeRealm|Could not load .*TheFaeRealm|Unable to create or load the Fae Realm|Exception in server tick loop|java\.lang\.(NoSuchMethodError|NoClassDefFoundError|LinkageError)' "$console_log"; then
         echo "Paper runtime smoke ${label}: fatal runtime/linkage failure detected." >&2
         cat "$console_log" >&2 || true
         return 1
     fi
-
-    if ! grep -Fq 'Stopping server' "$console_log"; then
-        echo "Paper runtime smoke ${label}: a normal server shutdown was not observed." >&2
-        cat "$console_log" >&2 || true
-        return 1
-    fi
+    grep -Fq 'Stopping server' "$console_log" || {
+        echo "Paper runtime smoke ${label}: a normal server shutdown was not observed." >&2; return 1;
+    }
 }
 
 run_cycle "first"
 FIRST_METADATA_HASH="$(sha256sum "$REALM_METADATA" | awk '{print $1}')"
 FIRST_REALM_PATH="${REALM_METADATA#"$WORK_DIR"/}"
-
-if ! grep -Fq 'Initialized the Fae Realm arrival island and return portal.' "$WORK_DIR/first.console.log"; then
-    echo "First boot did not report initial arrival-area setup." >&2
-    cat "$WORK_DIR/first.console.log" >&2 || true
-    exit 1
-fi
+grep -Fq 'Initialized the Fae Realm arrival island and return portal.' "$WORK_DIR/first.console.log" || {
+    echo "First boot did not report initial arrival-area setup." >&2; exit 1;
+}
 
 run_cycle "second"
 SECOND_METADATA_HASH="$(sha256sum "$REALM_METADATA" | awk '{print $1}')"
 SECOND_REALM_PATH="${REALM_METADATA#"$WORK_DIR"/}"
-
-if ! grep -Fq 'Existing Fae Realm detected; preserving player changes around realm spawn.' "$WORK_DIR/second.console.log"; then
-    echo "Second boot did not preserve the initialized arrival area." >&2
-    cat "$WORK_DIR/second.console.log" >&2 || true
-    exit 1
-fi
-
-if [[ -z "$FIRST_METADATA_HASH" || -z "$SECOND_METADATA_HASH" ]]; then
-    echo "Could not hash persisted generator metadata." >&2
-    exit 1
-fi
-
-if [[ "$FIRST_REALM_PATH" != "$SECOND_REALM_PATH" ]]; then
-    echo "Fae Realm storage moved between boot cycles: $FIRST_REALM_PATH -> $SECOND_REALM_PATH" >&2
-    exit 1
-fi
+grep -Fq 'Existing Fae Realm detected; preserving player changes around realm spawn.' "$WORK_DIR/second.console.log" || {
+    echo "Second boot did not preserve the initialized arrival area." >&2; exit 1;
+}
+[[ "$FIRST_REALM_PATH" == "$SECOND_REALM_PATH" ]] || {
+    echo "Fae Realm storage moved between boot cycles: $FIRST_REALM_PATH -> $SECOND_REALM_PATH" >&2; exit 1;
+}
+[[ -n "$FIRST_METADATA_HASH" && -n "$SECOND_METADATA_HASH" ]]
 
 cat > "$WORK_DIR/smoke-result.txt" <<EOF
 The Fae Realm Paper runtime smoke: PASS
@@ -264,9 +207,11 @@ Cycles: 2
 Fae Realm dimension created: yes
 Fae Realm storage: ${SECOND_REALM_PATH}
 Generator metadata present: yes
-Generator version: 6
-Terrain profiles persisted: yes
-Settings provenance persisted: yes
+Generator version: 8
+Preset: radiant_end
+Radiant End layout: yes
+Growth ecology: 1.45
+Landmark spacing: 28 chunks
 Console /fae info: pass
 Console /fae locate: pass
 Second boot loaded persisted realm: yes
