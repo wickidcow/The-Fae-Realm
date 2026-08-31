@@ -13,10 +13,11 @@ world:
   # return-to-overworld | fae-spawn | death
   void-behavior: return-to-overworld
 
-  # Realm gameplay rules. These can be reloaded without regenerating terrain.
+  # A bright, calm sky complements the Radiant End terrain profile. The world
+  # remains a NORMAL environment so vanilla clients render a real sun and blue sky.
   pvp: true
-  daylight-cycle: true
-  weather-cycle: true
+  daylight-cycle: false
+  weather-cycle: false
   mob-spawning: true
 
 portal:
@@ -24,42 +25,35 @@ portal:
   auto-activate: true
   cooldown-seconds: 3
 
-# The deterministic generator revision is owned by the plugin code and recorded in
-# fae-realm-generator.yml. It is intentionally not a user-editable setting.
 worldgen:
-  # balanced | ethereal | lush | wild
-  preset: balanced
+  # radiant_end | balanced | ethereal | lush | wild
+  preset: radiant_end
 
-  # Leave these as null to inherit the selected preset. Replace null with a number
-  # only when you want to override that one part of the preset.
-  # island-density range: 0.25 - 1.75
+  # Apply the Radiant End spacing bias even when an older preset is selected.
+  radiant-end-layout: true
+
+  # Leave these as null to inherit the selected preset.
   island-density: null
-  # vertical-scale range: 0.50 - 1.80
   vertical-scale: null
-  # cave-density range: 0.20 - 1.80
   cave-density: null
-  # cloud-level range: 48 - 120
   cloud-level: null
 
-  # Enable deterministic island personalities: balanced, plateau, spire,
-  # terraced, and hollow. Turning this off makes generated islands use the
-  # balanced profile only.
   terrain-profiles: true
 
-  # Density multipliers for generated details. 0 disables that density layer;
-  # values up to 2.5 are supported. The layer toggle below can still disable it.
-  decoration-density: 1.0
+  # Multi-noise ecology density. Valid range: 0.0 - 3.0.
+  growth-density: 1.45
+
+  decoration-density: 1.15
   resource-density: 1.0
 
-  # One major structure candidate is chosen per square cell of this many chunks.
-  # Valid range: 6 - 24. Lower values make structures more common.
   structure-spacing-chunks: 10
 
-  # Chance that a valid major-structure site becomes a Fae Vault instead of its
-  # region-specific landmark. Valid range: 0.0 - 0.50.
+  # Great trees, hanging gardens, crystal crowns, sky arches and sun causeways.
+  # Valid range: 18 - 48.
+  landmark-spacing-chunks: 28
+
   dungeon-chance: 0.12
 
-  # Independent generator layers. Changing these affects newly generated chunks.
   clouds: true
   decorations: true
   structures: true
@@ -67,12 +61,8 @@ worldgen:
 
 progression:
   enabled: true
-  # Chance for a naturally generated Fae resource block to release Fae Essence.
-  # Player-placed source blocks are persistently tracked and never qualify.
   essence-drop-chance: 0.22
 
 integrations:
   betterstructures:
-    # Keep generic BetterStructures packs out of Fae Realm by default.
-    # A dedicated Fae Realm structure pack can opt in later.
     allow-generic-structures-in-fae-realm: false
