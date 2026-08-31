@@ -14,6 +14,13 @@ import java.util.Random;
  */
 public final class FaeRealmPopulator extends BlockPopulator {
 
+    static {
+        // Paper's CraftWorld populator list is a mutable ArrayList. Arm the guard
+        // before WorldInitEvent so concurrent tools such as Chunky cannot race
+        // another plugin mutating that list while FEATURES workers iterate it.
+        FaePopulatorListGuard.register();
+    }
+
     private static final FaeStructurePopulator STRUCTURES = new FaeStructurePopulator();
     private static final FaeLandmarkPopulator LANDMARKS = new FaeLandmarkPopulator();
     private static final FaeResourcePopulator RESOURCES = new FaeResourcePopulator();
