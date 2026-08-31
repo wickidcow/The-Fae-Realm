@@ -16,9 +16,12 @@ public record FaeGeneratorSettings(
     double caveDensity,
     int cloudLevel,
     boolean terrainProfiles,
+    boolean radiantEndLayout,
+    double growthDensity,
     double decorationDensity,
     double resourceDensity,
     int structureSpacingChunks,
+    int landmarkSpacingChunks,
     double dungeonChance,
     boolean clouds,
     boolean decorations,
@@ -26,7 +29,7 @@ public record FaeGeneratorSettings(
     boolean resources
 ) {
     public static FaeGeneratorSettings defaults() {
-        TerrainPreset preset = TerrainPreset.BALANCED;
+        TerrainPreset preset = TerrainPreset.RADIANT_END;
         return new FaeGeneratorSettings(
             preset,
             preset.islandDensity(),
@@ -34,9 +37,12 @@ public record FaeGeneratorSettings(
             preset.caveDensity(),
             preset.cloudLevel(),
             true,
-            1.0,
+            true,
+            1.45,
+            1.15,
             1.0,
             10,
+            28,
             0.12,
             true,
             true,
@@ -46,7 +52,7 @@ public record FaeGeneratorSettings(
     }
 
     public static FaeGeneratorSettings from(FileConfiguration config) {
-        TerrainPreset preset = TerrainPreset.parse(config.getString("worldgen.preset", "balanced"));
+        TerrainPreset preset = TerrainPreset.parse(config.getString("worldgen.preset", "radiant_end"));
 
         double density = clamp(
             numericOverride(config, "worldgen.island-density", preset.islandDensity()),
@@ -62,8 +68,21 @@ public record FaeGeneratorSettings(
             1.80);
         int cloudLevel = Math.max(48, Math.min(120,
             integerOverride(config, "worldgen.cloud-level", preset.cloudLevel())));
+
+        boolean radiantEndLayout = config.getBoolean("worldgen.radiant-end-layout", true);
+        if (radiantEndLayout && preset != TerrainPreset.RADIANT_END) {
+            density = clamp(density * 0.82, 0.25, 1.75);
+            vertical = clamp(vertical * 1.12, 0.50, 1.80);
+            caves = clamp(caves * 0.96, 0.20, 1.80);
+            cloudLevel = Math.min(cloudLevel, 70);
+        }
+
+        double growthDensity = clamp(
+            numericOverride(config, "worldgen.growth-density", 1.45),
+            0.0,
+            3.0);
         double decorationDensity = clamp(
-            numericOverride(config, "worldgen.decoration-density", 1.0),
+            numericOverride(config, "worldgen.decoration-density", 1.15),
             0.0,
             2.5);
         double resourceDensity = clamp(
@@ -72,6 +91,8 @@ public record FaeGeneratorSettings(
             2.5);
         int structureSpacing = Math.max(6, Math.min(24,
             integerOverride(config, "worldgen.structure-spacing-chunks", 10)));
+        int landmarkSpacing = Math.max(18, Math.min(48,
+            integerOverride(config, "worldgen.landmark-spacing-chunks", 28)));
         double dungeonChance = clamp(
             numericOverride(config, "worldgen.dungeon-chance", 0.12),
             0.0,
@@ -84,9 +105,12 @@ public record FaeGeneratorSettings(
             caves,
             cloudLevel,
             config.getBoolean("worldgen.terrain-profiles", true),
+            radiantEndLayout,
+            growthDensity,
             decorationDensity,
             resourceDensity,
             structureSpacing,
+            landmarkSpacing,
             dungeonChance,
             config.getBoolean("worldgen.clouds", true),
             config.getBoolean("worldgen.decorations", true),
@@ -110,6 +134,7 @@ public record FaeGeneratorSettings(
     }
 
     public enum TerrainPreset {
+        RADIANT_END(0.76, 1.28, 0.92, 68),
         BALANCED(1.00, 1.00, 1.00, 74),
         ETHEREAL(0.72, 1.24, 0.82, 70),
         LUSH(1.28, 0.88, 1.08, 78),
@@ -145,12 +170,12 @@ public record FaeGeneratorSettings(
 
         public static TerrainPreset parse(String configured) {
             if (configured == null) {
-                return BALANCED;
+                return RADIANT_END;
             }
             try {
-                return valueOf(configured.trim().toUpperCase(Locale.ROOT));
+                return valueOf(configured.trim().toUpperCase(Locale.ROOT).replace('-', '_'));
             } catch (IllegalArgumentException ignored) {
-                return BALANCED;
+                return RADIANT_END;
             }
         }
     }
