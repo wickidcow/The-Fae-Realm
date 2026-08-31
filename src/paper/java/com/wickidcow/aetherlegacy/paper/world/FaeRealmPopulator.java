@@ -18,6 +18,7 @@ public final class FaeRealmPopulator extends BlockPopulator {
     private static final FaeResourcePopulator RESOURCES = new FaeResourcePopulator();
     private static final FaeFeaturePopulator FEATURES = new FaeFeaturePopulator();
     private static final FaeUndersideGenerator UNDERSIDE = new FaeUndersideGenerator();
+    private static final FaeFloraPopulator FLORA = new FaeFloraPopulator();
 
     private final FaeGeneratorSettings settings;
 
@@ -44,26 +45,7 @@ public final class FaeRealmPopulator extends BlockPopulator {
 
         if (settings.decorations() && settings.decorationDensity() > 0.0) {
             UNDERSIDE.populate(worldInfo, chunkX, chunkZ, region, settings);
-
-            int treeAttempts = scaledAttempts(1 + random.nextInt(3), settings.decorationDensity(), random);
-            for (int i = 0; i < treeAttempts; i++) {
-                int x = baseX + random.nextInt(16);
-                int z = baseZ + random.nextInt(16);
-                int y = region.getHighestBlockYAt(x, z);
-                if (y < worldInfo.getMinHeight() || y + 8 >= worldInfo.getMaxHeight()) {
-                    continue;
-                }
-
-                FaeRealmBiome biome = AetherChunkGenerator.biomeAt(worldInfo.getSeed(), x, z);
-                Material surface = region.getType(x, y, z);
-                if (surface != biome.surface()) {
-                    continue;
-                }
-
-                if (random.nextDouble() < treeChance(biome)) {
-                    placeTree(region, x, y + 1, z, biome, random);
-                }
-            }
+            FLORA.populate(worldInfo, chunkX, chunkZ, region, settings);
 
             if (random.nextDouble() < scaledChance(1.0 / 9.0, settings.decorationDensity())) {
                 placeCrystalOutcrop(worldInfo, region, random, baseX, baseZ);
@@ -87,65 +69,8 @@ public final class FaeRealmPopulator extends BlockPopulator {
         }
     }
 
-    private int scaledAttempts(int baseAttempts, double density, Random random) {
-        double expected = Math.max(0.0, baseAttempts * density);
-        int whole = (int) Math.floor(expected);
-        double remainder = expected - whole;
-        return whole + (random.nextDouble() < remainder ? 1 : 0);
-    }
-
     private double scaledChance(double baseChance, double density) {
         return Math.min(1.0, Math.max(0.0, baseChance * density));
-    }
-
-    private double treeChance(FaeRealmBiome biome) {
-        return switch (biome) {
-            case GOLDEN_MEADOWS -> 0.22;
-            case CRYSTAL_WOODS -> 0.72;
-            case MIST_GARDENS -> 0.48;
-            case ANCIENT_FAE_FOREST -> 0.82;
-            case SKY_HIGHLANDS -> 0.35;
-        };
-    }
-
-    private void placeTree(LimitedRegion region, int x, int y, int z,
-                           FaeRealmBiome biome, Random random) {
-        Material log = switch (biome) {
-            case GOLDEN_MEADOWS -> Material.OAK_LOG;
-            case CRYSTAL_WOODS -> Material.CHERRY_LOG;
-            case MIST_GARDENS -> Material.PALE_OAK_LOG;
-            case ANCIENT_FAE_FOREST -> Material.DARK_OAK_LOG;
-            case SKY_HIGHLANDS -> Material.BIRCH_LOG;
-        };
-        Material leaves = switch (biome) {
-            case GOLDEN_MEADOWS -> Material.OAK_LEAVES;
-            case CRYSTAL_WOODS -> Material.CHERRY_LEAVES;
-            case MIST_GARDENS -> Material.PALE_OAK_LEAVES;
-            case ANCIENT_FAE_FOREST -> Material.DARK_OAK_LEAVES;
-            case SKY_HIGHLANDS -> Material.BIRCH_LEAVES;
-        };
-
-        int height = 4 + random.nextInt(3);
-        for (int dy = 0; dy < height; dy++) {
-            setIfInside(region, x, y + dy, z, log);
-        }
-
-        int crownY = y + height - 2;
-        for (int dy = 0; dy <= 3; dy++) {
-            int radius = dy == 3 ? 1 : 2;
-            for (int dx = -radius; dx <= radius; dx++) {
-                for (int dz = -radius; dz <= radius; dz++) {
-                    if (Math.abs(dx) == radius && Math.abs(dz) == radius && random.nextBoolean()) {
-                        continue;
-                    }
-                    int py = crownY + dy;
-                    if (region.isInRegion(x + dx, py, z + dz)
-                        && region.getType(x + dx, py, z + dz).isAir()) {
-                        region.setType(x + dx, py, z + dz, leaves);
-                    }
-                }
-            }
-        }
     }
 
     private void placeCrystalOutcrop(WorldInfo info, LimitedRegion region, Random random, int baseX, int baseZ) {
