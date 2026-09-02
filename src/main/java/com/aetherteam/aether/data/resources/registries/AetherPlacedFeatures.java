@@ -69,13 +69,13 @@ public class AetherPlacedFeatures {
                 BiomeFilter.biome(),
                 new DungeonBlacklistFilter());
         register(context, SKYROOT_MEADOW_TREES_PLACEMENT, configuredFeatures.getOrThrow(AetherConfiguredFeatures.TREES_SKYROOT_AND_GOLDEN_OAK_CONFIGURATION),
-                AetherPlacedFeatureBuilders.treePlacement(RarityFilter.onAverageOnceEvery(1)));
+                AetherPlacedFeatureBuilders.treePlacement(PlacementUtils.countExtra(2, 0.25F, 1)));
         register(context, SKYROOT_GROVE_TREES_PLACEMENT, configuredFeatures.getOrThrow(AetherConfiguredFeatures.TREES_SKYROOT_AND_GOLDEN_OAK_CONFIGURATION),
-                AetherPlacedFeatureBuilders.treePlacement(PlacementUtils.countExtra(2, 0.1F, 1)));
+                AetherPlacedFeatureBuilders.treePlacement(PlacementUtils.countExtra(4, 0.2F, 1)));
         register(context, SKYROOT_WOODLAND_TREES_PLACEMENT, configuredFeatures.getOrThrow(AetherConfiguredFeatures.TREES_SKYROOT_AND_GOLDEN_OAK_CONFIGURATION),
-                AetherPlacedFeatureBuilders.treePlacement(PlacementUtils.countExtra(5, 0.1F, 1)));
+                AetherPlacedFeatureBuilders.treePlacement(PlacementUtils.countExtra(7, 0.2F, 1)));
         register(context, SKYROOT_FOREST_TREES_PLACEMENT, configuredFeatures.getOrThrow(AetherConfiguredFeatures.TREES_SKYROOT_AND_GOLDEN_OAK_CONFIGURATION),
-                AetherPlacedFeatureBuilders.treePlacement(PlacementUtils.countExtra(6, 0.1F, 1)));
+                AetherPlacedFeatureBuilders.treePlacement(PlacementUtils.countExtra(10, 0.25F, 2)));
         register(context, HOLIDAY_TREE_PLACEMENT, configuredFeatures.getOrThrow(AetherConfiguredFeatures.HOLIDAY_TREE_CONFIGURATION),
                 RarityFilter.onAverageOnceEvery(75),
                 InSquarePlacement.spread(),
@@ -85,13 +85,13 @@ public class AetherPlacedFeatures {
                 new HolidayFilter(),
                 PlacementUtils.filteredByBlockSurvival(AetherBlocks.SKYROOT_SAPLING.get()));
         register(context, GRASS_PATCH_PLACEMENT, configuredFeatures.getOrThrow(AetherConfiguredFeatures.GRASS_PATCH_CONFIGURATION),
-                NoiseThresholdCountPlacement.of(-0.8, 5, 10),
+                NoiseThresholdCountPlacement.of(-0.8, 8, 16),
                 ImprovedLayerPlacementModifier.of(Heightmap.Types.MOTION_BLOCKING, UniformInt.of(0, 1), 4),
                 BiomeFilter.biome(),
                 new ConfigFilter(AetherConfig.SERVER.generate_tall_grass));
         register(context, TALL_GRASS_PATCH_PLACEMENT, configuredFeatures.getOrThrow(AetherConfiguredFeatures.TALL_GRASS_PATCH_CONFIGURATION),
-                NoiseThresholdCountPlacement.of(-0.8, 0, 7),
-                RarityFilter.onAverageOnceEvery(32),
+                NoiseThresholdCountPlacement.of(-0.8, 2, 10),
+                RarityFilter.onAverageOnceEvery(16),
                 ImprovedLayerPlacementModifier.of(Heightmap.Types.MOTION_BLOCKING, UniformInt.of(0, 1), 4),
                 BiomeFilter.biome(),
                 new ConfigFilter(AetherConfig.SERVER.generate_tall_grass));
@@ -100,15 +100,15 @@ public class AetherPlacedFeatures {
         register(context, ENCHANTED_AETHER_GRASS_BONEMEAL, configuredFeatures.getOrThrow(VegetationFeatures.SINGLE_PIECE_OF_GRASS),
             PlacementUtils.isEmpty());
         register(context, WHITE_FLOWER_PATCH_PLACEMENT, configuredFeatures.getOrThrow(AetherConfiguredFeatures.WHITE_FLOWER_PATCH_CONFIGURATION),
-                RarityFilter.onAverageOnceEvery(8),
+                RarityFilter.onAverageOnceEvery(3),
                 ImprovedLayerPlacementModifier.of(Heightmap.Types.MOTION_BLOCKING, UniformInt.of(0, 1), 4),
                 BiomeFilter.biome());
         register(context, PURPLE_FLOWER_PATCH_PLACEMENT, configuredFeatures.getOrThrow(AetherConfiguredFeatures.PURPLE_FLOWER_PATCH_CONFIGURATION),
-                RarityFilter.onAverageOnceEvery(16),
+                RarityFilter.onAverageOnceEvery(6),
                 ImprovedLayerPlacementModifier.of(Heightmap.Types.MOTION_BLOCKING, UniformInt.of(0, 1), 4),
                 BiomeFilter.biome());
         register(context, BERRY_BUSH_PATCH_PLACEMENT, configuredFeatures.getOrThrow(AetherConfiguredFeatures.BERRY_BUSH_PATCH_CONFIGURATION),
-                RarityFilter.onAverageOnceEvery(8),
+                RarityFilter.onAverageOnceEvery(4),
                 ImprovedLayerPlacementModifier.of(Heightmap.Types.MOTION_BLOCKING, UniformInt.of(0, 1), 4),
                 BiomeFilter.biome());
         register(context, QUICKSOIL_SHELF_PLACEMENT, configuredFeatures.getOrThrow(AetherConfiguredFeatures.QUICKSOIL_SHELF_CONFIGURATION),
