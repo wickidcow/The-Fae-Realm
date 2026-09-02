@@ -33,6 +33,7 @@ public class AetherPlacedFeatures {
     public static final ResourceKey<PlacedFeature> SKYROOT_GROVE_TREES_PLACEMENT = createKey("skyroot_grove_trees");
     public static final ResourceKey<PlacedFeature> SKYROOT_WOODLAND_TREES_PLACEMENT = createKey("skyroot_woodland_trees");
     public static final ResourceKey<PlacedFeature> SKYROOT_FOREST_TREES_PLACEMENT = createKey("skyroot_forest_trees");
+    public static final ResourceKey<PlacedFeature> CRYSTAL_TREE_PLACEMENT = createKey("crystal_tree");
     public static final ResourceKey<PlacedFeature> CRYSTAL_ISLAND_PLACEMENT = createKey("crystal_island");
     public static final ResourceKey<PlacedFeature> HOLIDAY_TREE_PLACEMENT = createKey("holiday_tree");
     public static final ResourceKey<PlacedFeature> GRASS_PATCH_PLACEMENT = createKey("grass_patch");
@@ -76,6 +77,8 @@ public class AetherPlacedFeatures {
                 AetherPlacedFeatureBuilders.treePlacement(PlacementUtils.countExtra(7, 0.2F, 1)));
         register(context, SKYROOT_FOREST_TREES_PLACEMENT, configuredFeatures.getOrThrow(AetherConfiguredFeatures.TREES_SKYROOT_AND_GOLDEN_OAK_CONFIGURATION),
                 AetherPlacedFeatureBuilders.treePlacement(PlacementUtils.countExtra(10, 0.25F, 2)));
+        register(context, CRYSTAL_TREE_PLACEMENT, configuredFeatures.getOrThrow(AetherConfiguredFeatures.CRYSTAL_TREE_CONFIGURATION),
+                AetherPlacedFeatureBuilders.treePlacement(RarityFilter.onAverageOnceEvery(20)));
         register(context, HOLIDAY_TREE_PLACEMENT, configuredFeatures.getOrThrow(AetherConfiguredFeatures.HOLIDAY_TREE_CONFIGURATION),
                 RarityFilter.onAverageOnceEvery(75),
                 InSquarePlacement.spread(),
