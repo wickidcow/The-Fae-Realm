@@ -58,11 +58,15 @@ public final class FaeRealmPopulator extends BlockPopulator {
                 UNDERSIDE.populate(worldInfo, chunkX, chunkZ, region, settings);
                 FLORA.populate(worldInfo, chunkX, chunkZ, region, settings);
 
-                if (random.nextDouble() < scaledChance(1.0 / 9.0, settings.decorationDensity())) {
+                // Magical geology should be visible while simply walking the realm,
+                // not only after mining into an island.
+                if (random.nextDouble() < scaledChance(1.0 / 5.0, settings.decorationDensity())) {
                     placeCrystalOutcrop(worldInfo, region, random, baseX, baseZ);
                 }
 
-                if (random.nextDouble() < scaledChance(1.0 / 96.0, settings.decorationDensity())) {
+                // Small ruins are intentionally uncommon enough to stay special,
+                // but common enough that the world rarely feels untouched or empty.
+                if (random.nextDouble() < scaledChance(1.0 / 40.0, settings.decorationDensity())) {
                     placeFaeRuin(worldInfo, region, random, baseX, baseZ);
                 }
             }
