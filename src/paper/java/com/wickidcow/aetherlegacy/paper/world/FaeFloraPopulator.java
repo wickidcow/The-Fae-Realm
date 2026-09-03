@@ -34,12 +34,12 @@ public final class FaeFloraPopulator {
 
         // Place the larger tree silhouettes before understory so ground plants
         // cannot become the highest block and accidentally suppress a tree site.
-        int treeAttempts = scaledAttempts(2 + random.nextInt(4), density, random);
+        int treeAttempts = scaledAttempts(5 + random.nextInt(4), density, random);
         for (int i = 0; i < treeAttempts; i++) {
             int x = baseX + 3 + random.nextInt(10);
             int z = baseZ + 3 + random.nextInt(10);
-            int surfaceY = region.getHighestBlockYAt(x, z);
-            if (!isFaeSurface(info, region, x, surfaceY, z)
+            int surfaceY = FaeSurfaceLocator.find(info, region, x, z);
+            if (surfaceY == Integer.MIN_VALUE
                 || surfaceY + 18 >= info.getMaxHeight()) {
                 continue;
             }
@@ -63,12 +63,12 @@ public final class FaeFloraPopulator {
             }
         }
 
-        int groundAttempts = scaledAttempts(18 + random.nextInt(11), density, random);
+        int groundAttempts = scaledAttempts(42 + random.nextInt(23), density, random);
         for (int i = 0; i < groundAttempts; i++) {
             int x = baseX + random.nextInt(16);
             int z = baseZ + random.nextInt(16);
-            int surfaceY = region.getHighestBlockYAt(x, z);
-            if (!isFaeSurface(info, region, x, surfaceY, z)) {
+            int surfaceY = FaeSurfaceLocator.find(info, region, x, z);
+            if (surfaceY == Integer.MIN_VALUE) {
                 continue;
             }
             placeGroundGrowth(info, region, random, x, surfaceY + 1, z);
@@ -77,21 +77,12 @@ public final class FaeFloraPopulator {
 
     private double treeChance(FaeRealmBiome biome) {
         return switch (biome) {
-            case GOLDEN_MEADOWS -> 0.38;
-            case CRYSTAL_WOODS -> 0.78;
-            case MIST_GARDENS -> 0.62;
-            case ANCIENT_FAE_FOREST -> 0.90;
-            case SKY_HIGHLANDS -> 0.48;
+            case GOLDEN_MEADOWS -> 0.55;
+            case CRYSTAL_WOODS -> 0.90;
+            case MIST_GARDENS -> 0.78;
+            case ANCIENT_FAE_FOREST -> 0.96;
+            case SKY_HIGHLANDS -> 0.64;
         };
-    }
-
-    private boolean isFaeSurface(WorldInfo info, LimitedRegion region, int x, int y, int z) {
-        if (y < info.getMinHeight() || y + 1 >= info.getMaxHeight()
-            || !region.isInRegion(x, y, z)) {
-            return false;
-        }
-        FaeRealmBiome biome = AetherChunkGenerator.biomeAt(info.getSeed(), x, z);
-        return region.getType(x, y, z) == biome.surface();
     }
 
     private void placeGroundGrowth(WorldInfo info,

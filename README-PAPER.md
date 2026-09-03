@@ -4,13 +4,15 @@
 
 The Paper implementation owns its terrain, ecology, regional identities, resources, structures, dungeons, progression hooks, portals, configuration and runtime validation. Iris/Terra-style ideas such as layered noise fields, domain warping and deterministic object grids are implemented independently in this plugin; Iris is not a dependency.
 
-## Generator v8 — Radiant End
+## Generator v9 — Living Islands
 
-Generator revision **v8** adds the Radiant End generation pass. The goal is the openness and vertical separation of The End, but with a normal bright overworld sky, sun, vegetation and Fae ecology.
+Generator revision **v9** keeps the open Radiant End layout while making ordinary islands visibly alive. Terrain-aware surface lookup now finds valid ground beneath flowers, moss, tree canopies and nearby feature blocks, preventing later ecology passes from silently rejecting good placement sites.
+
+Trees, understory clusters and small biome landmarks are substantially more common. Golden Meadows remain more open than Ancient Fae Forests, but every region now has enough canopy and ground cover to read as a living Fae biome instead of an empty grass platform.
 
 The realm deliberately remains a Bukkit **NORMAL** environment. The custom generator provides the void/floating-island geography while vanilla clients keep the normal sky and sun.
 
-Existing chunks are never rewritten automatically. Upgrading an existing realm changes only newly generated chunks. For the cleanest all-v8 terrain, create a fresh realm/world folder.
+Existing chunks are never rewritten automatically. Upgrading an existing realm changes only newly generated chunks. For the cleanest all-v9 terrain, create a fresh realm/world folder or test beyond the pregenerated border.
 
 ### Terrain
 
@@ -37,7 +39,7 @@ Existing chunks are never rewritten automatically. Upgrading an existing realm c
 
 ## Multi-noise ecology
 
-Generator v8 layers an additional ecology field over the biome flora. Independent fertility, moisture and magical-energy noise fields are domain-warped into broad coherent growth regions instead of placing every plant with unrelated random rolls.
+Generator v9 layers an additional ecology field over the biome flora. Independent fertility, moisture and magical-energy noise fields are domain-warped into broad coherent growth regions instead of placing every plant with unrelated random rolls.
 
 The resulting ecology bands are:
 
@@ -65,7 +67,7 @@ Use `/fae biome` in the realm to inspect the current region. Admins can use `/fa
 
 ## Rare large landmarks
 
-Generator v8 adds a separate long-range landmark grid so major sights remain rare and memorable instead of appearing in every few chunks.
+Generator v9 uses a separate long-range landmark grid so major sights remain rare and memorable instead of appearing in every few chunks.
 
 Depending on region, exploration can find:
 
@@ -183,7 +185,7 @@ Each realm stores `fae-realm-generator.yml` with the generator revision, seed, p
 
 - Minecraft/Paper: **26.2**
 - Java: **25**
-- Generator: **v8 Radiant End**
+- Generator: **v9 Living Islands**
 - Iris: **not required**
 - BetterStructures: **optional runtime integration only; not a plugin load dependency**
 - Client mods/resource pack: **not required**

@@ -96,8 +96,8 @@ public final class FaeRealmPopulator extends BlockPopulator {
     private void placeCrystalOutcrop(WorldInfo info, LimitedRegion region, Random random, int baseX, int baseZ) {
         int x = baseX + 3 + random.nextInt(10);
         int z = baseZ + 3 + random.nextInt(10);
-        int y = region.getHighestBlockYAt(x, z);
-        if (y < info.getMinHeight() || y + 4 >= info.getMaxHeight()) {
+        int y = FaeSurfaceLocator.find(info, region, x, z);
+        if (y == Integer.MIN_VALUE || y + 4 >= info.getMaxHeight()) {
             return;
         }
         if (AetherChunkGenerator.biomeAt(info.getSeed(), x, z) != FaeRealmBiome.CRYSTAL_WOODS) {
@@ -118,14 +118,8 @@ public final class FaeRealmPopulator extends BlockPopulator {
     private void placeFaeRuin(WorldInfo info, LimitedRegion region, Random random, int baseX, int baseZ) {
         int x = baseX + 5 + random.nextInt(6);
         int z = baseZ + 5 + random.nextInt(6);
-        int y = region.getHighestBlockYAt(x, z);
-        if (y < info.getMinHeight() || y + 6 >= info.getMaxHeight()) {
-            return;
-        }
-
-        Material surface = region.getType(x, y, z);
-        FaeRealmBiome biome = AetherChunkGenerator.biomeAt(info.getSeed(), x, z);
-        if (surface != biome.surface()) {
+        int y = FaeSurfaceLocator.find(info, region, x, z);
+        if (y == Integer.MIN_VALUE || y + 6 >= info.getMaxHeight()) {
             return;
         }
 

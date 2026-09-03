@@ -3,7 +3,7 @@ plugins {
 }
 
 group = 'com.wickidcow.faerealm'
-version = '0.3.1'
+version = '0.3.2'
 
 def paperVersion = '26.2.build.112-stable'
 
