@@ -25,32 +25,33 @@ public final class FaeLandmarkPopulator {
 
         int x = (chunkX << 4) + 8;
         int z = (chunkZ << 4) + 8;
-        int y = region.getHighestBlockYAt(x, z);
-        if (y < info.getMinHeight() || y + 32 >= info.getMaxHeight()) return false;
+        int y = FaeSurfaceLocator.find(info, region, x, z);
+        if (y == Integer.MIN_VALUE || y + 32 >= info.getMaxHeight()) return false;
 
         FaeRealmBiome biome = AetherChunkGenerator.biomeAt(info.getSeed(), x, z);
-        if (region.getType(x, y, z) != biome.surface() || !stable(region, x, y, z, 7)) return false;
+        if (!stable(info, region, x, y, z, 7)) return false;
 
         switch (biome) {
-            case ANCIENT_FAE_FOREST -> placeGreatTree(region, random, x, y + 1, z,
+            case ANCIENT_FAE_FOREST -> placeGreatTree(info, region, random, x, y + 1, z,
                 Material.DARK_OAK_LOG, Material.DARK_OAK_WOOD, Material.DARK_OAK_LEAVES, Material.AZALEA_LEAVES);
             case CRYSTAL_WOODS -> {
                 if (random.nextBoolean()) placeCrystalCrown(region, random, x, y + 1, z);
-                else placeGreatTree(region, random, x, y + 1, z,
+                else placeGreatTree(info, region, random, x, y + 1, z,
                     Material.CHERRY_LOG, Material.CHERRY_WOOD, Material.CHERRY_LEAVES, Material.FLOWERING_AZALEA_LEAVES);
             }
             case MIST_GARDENS -> placeHangingGarden(region, random, x, y + 1, z);
             case SKY_HIGHLANDS -> placeSkyArch(region, x, y + 1, z);
             case GOLDEN_MEADOWS -> {
                 if (random.nextBoolean()) placeSunCauseway(region, random, x, y + 1, z);
-                else placeGreatTree(region, random, x, y + 1, z,
+                else placeGreatTree(info, region, random, x, y + 1, z,
                     Material.OAK_LOG, Material.OAK_WOOD, Material.OAK_LEAVES, Material.FLOWERING_AZALEA_LEAVES);
             }
         }
         return true;
     }
 
-    private void placeGreatTree(LimitedRegion region, SplittableRandom random, int x, int y, int z,
+    private void placeGreatTree(WorldInfo info, LimitedRegion region, SplittableRandom random,
+                                int x, int y, int z,
                                 Material log, Material wood, Material leaves, Material accentLeaves) {
         int height = 18 + random.nextInt(9);
         int trunkX = x;
@@ -85,7 +86,9 @@ public final class FaeLandmarkPopulator {
             for (int step = 1; step <= length; step++) {
                 int px = x + d[0] * step;
                 int pz = z + d[1] * step;
-                int py = region.getHighestBlockYAt(px, pz) + 1;
+                int surfaceY = FaeSurfaceLocator.find(info, region, px, pz);
+                if (surfaceY == Integer.MIN_VALUE) continue;
+                int py = surfaceY + 1;
                 set(region, px, py, pz, wood);
                 if (step <= 3) set(region, px, py + 1, pz, log);
             }
@@ -183,11 +186,14 @@ public final class FaeLandmarkPopulator {
         set(region, x, y + 1, z, Material.SEA_LANTERN);
     }
 
-    private boolean stable(LimitedRegion region, int x, int y, int z, int radius) {
+    private boolean stable(WorldInfo info, LimitedRegion region, int x, int y, int z, int radius) {
         int[][] samples = {{0,0},{-radius,0},{radius,0},{0,-radius},{0,radius},{-radius,-radius},{-radius,radius},{radius,-radius},{radius,radius}};
         for (int[] s : samples) {
             int sx = x + s[0], sz = z + s[1];
-            if (!region.isInRegion(sx, y, sz) || Math.abs(region.getHighestBlockYAt(sx, sz) - y) > 4) return false;
+            int surfaceY = FaeSurfaceLocator.find(info, region, sx, sz);
+            if (!region.isInRegion(sx, y, sz)
+                || surfaceY == Integer.MIN_VALUE
+                || Math.abs(surfaceY - y) > 4) return false;
         }
         return true;
     }

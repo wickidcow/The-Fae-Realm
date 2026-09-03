@@ -6,7 +6,7 @@ on:
       - paper-26.2
   pull_request:
     branches:
-      - 1.21.1-develop
+      - paper-26.2
   workflow_dispatch:
 
 permissions:

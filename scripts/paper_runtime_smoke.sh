@@ -6,6 +6,8 @@ WORK_DIR="${2:-build/paper-runtime-smoke}"
 MC_VERSION="${PAPER_MINECRAFT_VERSION:-26.2}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 EXPECTED_PLUGIN_VERSION="${FAE_REALM_SMOKE_VERSION:-$(sed -n "s/^version = '\([^']*\)'/\1/p" "$REPO_ROOT/build.gradle" | head -n 1 | tr -d '\r')}"
+GENERATOR_VERSION_SOURCE="$REPO_ROOT/src/paper/java/com/wickidcow/aetherlegacy/paper/world/FaeGeneratorVersion.java"
+EXPECTED_GENERATOR_VERSION="${FAE_REALM_SMOKE_GENERATOR_VERSION:-$(sed -n 's/.*CURRENT = \([0-9][0-9]*\);.*/\1/p' "$GENERATOR_VERSION_SOURCE" | head -n 1 | tr -d '\r')}"
 USER_AGENT="${PAPER_DOWNLOAD_USER_AGENT:-The-Fae-Realm-CI/${EXPECTED_PLUGIN_VERSION} (https://github.com/wickidcow/The-Fae-Realm)}"
 STARTUP_TIMEOUT_SECONDS="${PAPER_SMOKE_STARTUP_TIMEOUT:-240}"
 SHUTDOWN_TIMEOUT_SECONDS="${PAPER_SMOKE_SHUTDOWN_TIMEOUT:-60}"
@@ -13,6 +15,11 @@ REALM_METADATA=""
 
 if [[ -z "$EXPECTED_PLUGIN_VERSION" ]]; then
     echo "Could not resolve The Fae Realm plugin version." >&2
+    exit 1
+fi
+
+if [[ -z "$EXPECTED_GENERATOR_VERSION" ]]; then
+    echo "Could not resolve The Fae Realm generator version." >&2
     exit 1
 fi
 
@@ -83,7 +90,7 @@ assert_realm_files() {
     }
 
     for expected in \
-        'current-generator-version: 8' \
+        "current-generator-version: ${EXPECTED_GENERATOR_VERSION}" \
         'current-preset: radiant_end' \
         'terrain-profiles: true' \
         'radiant-end-layout: true' \
@@ -169,8 +176,8 @@ run_cycle() {
         cat "$console_log" >&2 || true
         return 1
     }
-    grep -Fq 'Generator: v8 / radiant_end' "$console_log" || {
-        echo "Paper runtime smoke ${label}: /fae info did not report generator v8/radiant_end." >&2; return 1;
+    grep -Fq "Generator: v${EXPECTED_GENERATOR_VERSION} / radiant_end" "$console_log" || {
+        echo "Paper runtime smoke ${label}: /fae info did not report generator v${EXPECTED_GENERATOR_VERSION}/radiant_end." >&2; return 1;
     }
     grep -Fq 'Nearest Crystal Woods region sample:' "$console_log" || {
         echo "Paper runtime smoke ${label}: /fae locate did not return a Crystal Woods result." >&2; return 1;
@@ -212,7 +219,7 @@ Cycles: 2
 Fae Realm dimension created: yes
 Fae Realm storage: ${SECOND_REALM_PATH}
 Generator metadata present: yes
-Generator version: 8
+Generator version: ${EXPECTED_GENERATOR_VERSION}
 Preset: radiant_end
 Radiant End layout: yes
 Growth ecology: 1.45

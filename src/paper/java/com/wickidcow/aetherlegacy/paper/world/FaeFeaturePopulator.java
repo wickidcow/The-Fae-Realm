@@ -24,8 +24,8 @@ public final class FaeFeaturePopulator {
         SplittableRandom random = new SplittableRandom(
             mixSeed(info.getSeed() ^ FEATURE_SALT, chunkX, chunkZ));
 
-        // At density 1.0, roughly one in six chunks gets a recognizable micro-feature.
-        double featureChance = Math.min(1.0, Math.max(0.0, density / 6.0));
+        // Ordinary islands should regularly gain a recognizable focal detail.
+        double featureChance = Math.min(1.0, Math.max(0.0, density / 2.5));
         if (random.nextDouble() >= featureChance) {
             return;
         }
@@ -34,13 +34,13 @@ public final class FaeFeaturePopulator {
         int baseZ = chunkZ << 4;
         int x = baseX + 4 + random.nextInt(8);
         int z = baseZ + 4 + random.nextInt(8);
-        int y = region.getHighestBlockYAt(x, z);
-        if (y < info.getMinHeight() || y + 10 >= info.getMaxHeight()) {
+        int y = FaeSurfaceLocator.find(info, region, x, z);
+        if (y == Integer.MIN_VALUE || y + 10 >= info.getMaxHeight()) {
             return;
         }
 
         FaeRealmBiome biome = AetherChunkGenerator.biomeAt(info.getSeed(), x, z);
-        if (region.getType(x, y, z) != biome.surface() || !stable(region, x, y, z, 3)) {
+        if (!stable(info, region, x, y, z, 3)) {
             return;
         }
 
@@ -180,7 +180,7 @@ public final class FaeFeaturePopulator {
         set(region, x, y, z, Material.LODESTONE);
     }
 
-    private boolean stable(LimitedRegion region, int x, int y, int z, int radius) {
+    private boolean stable(WorldInfo info, LimitedRegion region, int x, int y, int z, int radius) {
         int[][] samples = {
             {0, 0}, {-radius, 0}, {radius, 0}, {0, -radius}, {0, radius},
             {-radius, -radius}, {-radius, radius}, {radius, -radius}, {radius, radius}
@@ -191,8 +191,8 @@ public final class FaeFeaturePopulator {
             if (!region.isInRegion(sx, y, sz)) {
                 return false;
             }
-            int sy = region.getHighestBlockYAt(sx, sz);
-            if (Math.abs(sy - y) > 2) {
+            int sy = FaeSurfaceLocator.find(info, region, sx, sz);
+            if (sy == Integer.MIN_VALUE || Math.abs(sy - y) > 2) {
                 return false;
             }
         }

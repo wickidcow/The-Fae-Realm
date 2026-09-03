@@ -26,12 +26,12 @@ public final class FaeGrowthPopulator {
         double localDensity = density * ecology.growthMultiplier();
         SplittableRandom random = new SplittableRandom(mixSeed(info.getSeed() ^ GROWTH_SALT, chunkX, chunkZ));
 
-        int clusterAttempts = scaledAttempts(5 + random.nextInt(6), localDensity, random);
+        int clusterAttempts = scaledAttempts(8 + random.nextInt(7), localDensity, random);
         for (int i = 0; i < clusterAttempts; i++) {
             int x = baseX + 2 + random.nextInt(12);
             int z = baseZ + 2 + random.nextInt(12);
-            int surfaceY = region.getHighestBlockYAt(x, z);
-            if (isFaeSurface(info, region, x, surfaceY, z)) {
+            int surfaceY = FaeSurfaceLocator.find(info, region, x, z);
+            if (surfaceY != Integer.MIN_VALUE) {
                 placeGrowthCluster(info, region, random, ecology, x, surfaceY + 1, z);
             }
         }
@@ -71,14 +71,17 @@ public final class FaeGrowthPopulator {
                 if (dx * dx + dz * dz > radius * radius + 1 || random.nextDouble() < 0.28) continue;
                 int px = x + dx;
                 int pz = z + dz;
-                int py = region.getHighestBlockYAt(px, pz) + 1;
-                if (region.isInRegion(px, py, pz) && region.getType(px, py, pz).isAir()) {
+                int surfaceY = FaeSurfaceLocator.find(info, region, px, pz);
+                int py = surfaceY + 1;
+                if (surfaceY != Integer.MIN_VALUE
+                    && region.isInRegion(px, py, pz)
+                    && region.getType(px, py, pz).isAir()) {
                     region.setType(px, py, pz, growthMaterial(biome, ecology, random));
                 }
             }
         }
         if ((ecology.band() == GrowthBand.ANCIENT || ecology.band() == GrowthBand.ENCHANTED) && random.nextDouble() < 0.32) {
-            placeRootKnot(region, random, x, y, z, biome);
+            placeRootKnot(info, region, random, x, y, z, biome);
         }
     }
 
@@ -101,7 +104,8 @@ public final class FaeGrowthPopulator {
         };
     }
 
-    private void placeRootKnot(LimitedRegion region, SplittableRandom random, int x, int y, int z, FaeRealmBiome biome) {
+    private void placeRootKnot(WorldInfo info, LimitedRegion region, SplittableRandom random,
+                               int x, int y, int z, FaeRealmBiome biome) {
         Material root = switch (biome) {
             case GOLDEN_MEADOWS -> Material.OAK_WOOD;
             case CRYSTAL_WOODS -> Material.CHERRY_WOOD;
@@ -117,9 +121,13 @@ public final class FaeGrowthPopulator {
             for (int step = 0; step < length; step++) {
                 int px = x + dx * step;
                 int pz = z + dz * step;
-                int py = region.getHighestBlockYAt(px, pz) + 1;
+                int surfaceY = FaeSurfaceLocator.find(info, region, px, pz);
+                if (surfaceY == Integer.MIN_VALUE) continue;
+                int py = surfaceY + 1;
                 setIfAir(region, px, py, pz, root);
-                if (random.nextDouble() < 0.35) setIfAir(region, px, py + 1, pz, Material.MOSS_CARPET);
+                if (random.nextDouble() < 0.35) {
+                    setIfAir(region, px, py + 1, pz, Material.MOSS_CARPET);
+                }
             }
         }
     }
@@ -142,11 +150,6 @@ public final class FaeGrowthPopulator {
             int length = 2 + random.nextInt(3 + Math.max(1, ecology.band().ordinal()));
             for (int drop = 1; drop <= length; drop++) if (!setIfAir(region, px, bottomY - drop, pz, hanging)) break;
         }
-    }
-
-    private boolean isFaeSurface(WorldInfo info, LimitedRegion region, int x, int y, int z) {
-        if (y < info.getMinHeight() || y + 1 >= info.getMaxHeight() || !region.isInRegion(x, y, z)) return false;
-        return region.getType(x, y, z) == AetherChunkGenerator.biomeAt(info.getSeed(), x, z).surface();
     }
 
     private int findLowestSolid(WorldInfo info, LimitedRegion region, int x, int z, int startY) {
