@@ -40,17 +40,19 @@ worldgen:
 
   terrain-profiles: true
 
-  # The Fae Realm is intentionally overgrown. Valid range: 0.0 - 3.0.
+  # The Fae Realm is intentionally overgrown by default. These values make
+  # ordinary islands feel crowded with plants, roots, canopies and magical detail.
+  # Growth valid range: 0.0 - 3.0. Decoration valid range: 0.0 - 2.5.
   growth-density: 2.05
-
-  # Dense trees, understory and small fantasy features. Valid range: 0.0 - 2.5.
   decoration-density: 1.65
 
-  # Fae islands are intentionally overflowing with useful resources.
+  # Fae islands are also intentionally resource-rich. The default produces
+  # frequent underground veins plus visible biome-themed magical resource blooms.
   # Valid range: 0.0 - 2.5.
   resource-density: 1.80
 
-  # Keep discoveries frequent so exploration always has something nearby.
+  # Structures and landmarks are closer together than vanilla-style exploration
+  # so the realm keeps a busy, inhabited-fantasy-world feel.
   structure-spacing-chunks: 8
 
   # Great trees, hanging gardens, crystal crowns, sky arches and sun causeways.
