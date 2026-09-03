@@ -112,6 +112,13 @@ public final class FaeGiantVegetationPopulator {
                 continue;
             }
 
+            // Chorus is not just decorative here: give each stalk a legal End-style
+            // root so later neighbor updates do not make the plant pop off.
+            if (region.isInRegion(x, surfaceY, z)) {
+                region.setType(x, surfaceY, z,
+                    crystalAccent && random.nextDouble() < 0.24 ? Material.PURPUR_BLOCK : Material.END_STONE);
+            }
+
             int y = surfaceY + 1;
             int height = 4 + random.nextInt(7);
             int px = x;
