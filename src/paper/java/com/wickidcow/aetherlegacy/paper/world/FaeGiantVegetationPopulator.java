@@ -314,6 +314,9 @@ public final class FaeGiantVegetationPopulator {
         int halfSpan = 4 + random.nextInt(4);
         int height = 5 + random.nextInt(5);
 
+        // Trace only the parabolic crown so the center remains genuinely open.
+        // The two ends are thickened with mangrove roots to make the arch feel grown
+        // out of the island instead of suspended above it.
         for (int offset = -halfSpan; offset <= halfSpan; offset++) {
             double normalized = offset / (double) halfSpan;
             int rise = (int) Math.round((1.0 - normalized * normalized) * height);
@@ -321,22 +324,36 @@ public final class FaeGiantVegetationPopulator {
             int pz = alongX ? z : z + offset;
             int surfaceY = FaeSurfaceLocator.find(info, region, px, pz);
             int py = surfaceY == Integer.MIN_VALUE ? y : surfaceY + 1;
-            for (int dy = 0; dy <= rise; dy++) {
-                Material material = dy <= 1 && random.nextDouble() < 0.44 ? Material.MANGROVE_ROOTS : wood;
-                setIfAir(region, px, py + dy, pz, material);
+            int crownY = py + rise;
+
+            Material crown = Math.abs(offset) >= halfSpan - 1 ? Material.MANGROVE_ROOTS : wood;
+            setIfAir(region, px, crownY, pz, crown);
+            if (random.nextDouble() < 0.62) {
+                int sideX = alongX ? px : px + (random.nextBoolean() ? 1 : -1);
+                int sideZ = alongX ? pz + (random.nextBoolean() ? 1 : -1) : pz;
+                setIfAir(region, sideX, crownY, sideZ,
+                    random.nextDouble() < 0.35 ? Material.MANGROVE_ROOTS : wood);
             }
 
-            if (rise >= height - 1 && random.nextDouble() < 0.72) {
-                setIfAir(region, px, py + rise + 1, pz, Material.FLOWERING_AZALEA_LEAVES);
+            if (Math.abs(offset) >= halfSpan - 1) {
+                for (int dy = 0; dy <= Math.min(3, rise); dy++) {
+                    setIfAir(region, px, py + dy, pz, Material.MANGROVE_ROOTS);
+                }
+            }
+
+            if (rise >= height - 1 && random.nextDouble() < 0.78) {
+                setIfAir(region, px, crownY + 1, pz, Material.FLOWERING_AZALEA_LEAVES);
             }
         }
 
-        // Curtains hanging from the arch make the silhouette read as vegetation,
-        // not a wooden bridge.
-        for (int i = 0; i < 14; i++) {
+        // Curtains descend from the arch crown into the open center.
+        for (int i = 0; i < 16; i++) {
             int offset = random.nextInt(-halfSpan + 1, halfSpan);
             double normalized = offset / (double) halfSpan;
             int rise = (int) Math.round((1.0 - normalized * normalized) * height);
+            if (rise < 3) {
+                continue;
+            }
             int px = alongX ? x + offset : x;
             int pz = alongX ? z : z + offset;
             int surfaceY = FaeSurfaceLocator.find(info, region, px, pz);
@@ -344,7 +361,7 @@ public final class FaeGiantVegetationPopulator {
                 continue;
             }
             int topY = surfaceY + 1 + rise;
-            int length = 2 + random.nextInt(5);
+            int length = 2 + random.nextInt(Math.max(2, Math.min(6, rise)));
             Material hanging = random.nextBoolean() ? Material.CAVE_VINES : Material.HANGING_ROOTS;
             for (int d = 1; d <= length; d++) {
                 if (!setIfAir(region, px, topY - d, pz, hanging)) {
