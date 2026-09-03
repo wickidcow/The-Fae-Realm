@@ -26,7 +26,7 @@ public final class FaeGrowthPopulator {
         double localDensity = density * ecology.growthMultiplier();
         SplittableRandom random = new SplittableRandom(mixSeed(info.getSeed() ^ GROWTH_SALT, chunkX, chunkZ));
 
-        int clusterAttempts = scaledAttempts(8 + random.nextInt(7), localDensity, random);
+        int clusterAttempts = scaledAttempts(11 + random.nextInt(9), localDensity, random);
         for (int i = 0; i < clusterAttempts; i++) {
             int x = baseX + 2 + random.nextInt(12);
             int z = baseZ + 2 + random.nextInt(12);
@@ -36,7 +36,7 @@ public final class FaeGrowthPopulator {
             }
         }
 
-        int edgeAttempts = scaledAttempts(2 + random.nextInt(4), localDensity, random);
+        int edgeAttempts = scaledAttempts(4 + random.nextInt(5), localDensity, random);
         for (int i = 0; i < edgeAttempts; i++) {
             int x = baseX + 2 + random.nextInt(12);
             int z = baseZ + 2 + random.nextInt(12);
@@ -53,22 +53,22 @@ public final class FaeGrowthPopulator {
         double moisture = unit(FaeNoise.fractal(seed ^ 0x452821E638D01377L, wx * 0.0026, wz * 0.0026, 3, 2.1, 0.50));
         double magic = unit(FaeNoise.fractal(seed ^ 0xBE5466CF34E90C6CL, wx * 0.0042, wz * 0.0042, 3, 2.0, 0.55));
         double combined = fertility * 0.48 + moisture * 0.30 + magic * 0.22;
-        GrowthBand band = combined < 0.28 ? GrowthBand.SPARSE : combined < 0.48 ? GrowthBand.MEADOW
-            : combined < 0.69 ? GrowthBand.LUSH : combined < 0.84 ? GrowthBand.ANCIENT : GrowthBand.ENCHANTED;
-        return new Ecology(moisture, magic, clamp(0.55, 2.05, 0.50 + combined * 1.55), band);
+        GrowthBand band = combined < 0.18 ? GrowthBand.SPARSE : combined < 0.38 ? GrowthBand.MEADOW
+            : combined < 0.62 ? GrowthBand.LUSH : combined < 0.80 ? GrowthBand.ANCIENT : GrowthBand.ENCHANTED;
+        return new Ecology(moisture, magic, clamp(0.95, 2.35, 0.82 + combined * 1.80), band);
     }
 
     private void placeGrowthCluster(WorldInfo info, LimitedRegion region, SplittableRandom random,
                                     Ecology ecology, int x, int y, int z) {
         FaeRealmBiome biome = AetherChunkGenerator.biomeAt(info.getSeed(), x, z);
         int radius = switch (ecology.band()) {
-            case SPARSE -> 1;
-            case MEADOW, LUSH -> 2;
-            case ANCIENT, ENCHANTED -> 3;
+            case SPARSE -> 2;
+            case MEADOW, LUSH -> 3;
+            case ANCIENT, ENCHANTED -> 4;
         };
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
-                if (dx * dx + dz * dz > radius * radius + 1 || random.nextDouble() < 0.28) continue;
+                if (dx * dx + dz * dz > radius * radius + 1 || random.nextDouble() < 0.18) continue;
                 int px = x + dx;
                 int pz = z + dz;
                 int surfaceY = FaeSurfaceLocator.find(info, region, px, pz);
@@ -80,27 +80,27 @@ public final class FaeGrowthPopulator {
                 }
             }
         }
-        if ((ecology.band() == GrowthBand.ANCIENT || ecology.band() == GrowthBand.ENCHANTED) && random.nextDouble() < 0.32) {
+        if ((ecology.band() == GrowthBand.ANCIENT || ecology.band() == GrowthBand.ENCHANTED) && random.nextDouble() < 0.48) {
             placeRootKnot(info, region, random, x, y, z, biome);
         }
     }
 
     private Material growthMaterial(FaeRealmBiome biome, Ecology ecology, SplittableRandom random) {
-        if (ecology.magic() > 0.78 && random.nextDouble() < 0.24) {
+        if (ecology.magic() > 0.70 && random.nextDouble() < 0.32) {
             return switch (biome) {
-                case CRYSTAL_WOODS -> Material.PINK_PETALS;
-                case MIST_GARDENS -> Material.PALE_MOSS_CARPET;
-                case ANCIENT_FAE_FOREST -> Material.FLOWERING_AZALEA;
-                case SKY_HIGHLANDS -> Material.ALLIUM;
-                case GOLDEN_MEADOWS -> Material.TORCHFLOWER;
+                case CRYSTAL_WOODS -> pick(random, Material.PINK_PETALS, Material.FLOWERING_AZALEA, Material.ALLIUM);
+                case MIST_GARDENS -> pick(random, Material.PALE_MOSS_CARPET, Material.RED_MUSHROOM, Material.BROWN_MUSHROOM);
+                case ANCIENT_FAE_FOREST -> pick(random, Material.FLOWERING_AZALEA, Material.MOSS_CARPET, Material.FERN);
+                case SKY_HIGHLANDS -> pick(random, Material.ALLIUM, Material.CORNFLOWER, Material.AZURE_BLUET);
+                case GOLDEN_MEADOWS -> pick(random, Material.TORCHFLOWER, Material.DANDELION, Material.OXEYE_DAISY);
             };
         }
         return switch (biome) {
-            case GOLDEN_MEADOWS -> pick(random, Material.SHORT_GRASS, Material.DANDELION, Material.OXEYE_DAISY, Material.CORNFLOWER, Material.ALLIUM, Material.PINK_PETALS);
-            case CRYSTAL_WOODS -> pick(random, Material.PINK_PETALS, Material.AZALEA, Material.FLOWERING_AZALEA, Material.SHORT_GRASS, Material.MOSS_CARPET);
-            case MIST_GARDENS -> pick(random, Material.PALE_MOSS_CARPET, Material.FERN, Material.BROWN_MUSHROOM, Material.RED_MUSHROOM, Material.SHORT_GRASS);
-            case ANCIENT_FAE_FOREST -> pick(random, Material.FERN, Material.LARGE_FERN, Material.MOSS_CARPET, Material.AZALEA, Material.FLOWERING_AZALEA, Material.BROWN_MUSHROOM);
-            case SKY_HIGHLANDS -> pick(random, Material.SHORT_GRASS, Material.FERN, Material.AZURE_BLUET, Material.CORNFLOWER, Material.OXEYE_DAISY);
+            case GOLDEN_MEADOWS -> pick(random, Material.SHORT_GRASS, Material.DANDELION, Material.OXEYE_DAISY, Material.CORNFLOWER, Material.ALLIUM, Material.PINK_PETALS, Material.TORCHFLOWER);
+            case CRYSTAL_WOODS -> pick(random, Material.PINK_PETALS, Material.AZALEA, Material.FLOWERING_AZALEA, Material.SHORT_GRASS, Material.MOSS_CARPET, Material.ALLIUM);
+            case MIST_GARDENS -> pick(random, Material.PALE_MOSS_CARPET, Material.FERN, Material.BROWN_MUSHROOM, Material.RED_MUSHROOM, Material.SHORT_GRASS, Material.MOSS_CARPET);
+            case ANCIENT_FAE_FOREST -> pick(random, Material.FERN, Material.LARGE_FERN, Material.MOSS_CARPET, Material.AZALEA, Material.FLOWERING_AZALEA, Material.BROWN_MUSHROOM, Material.RED_MUSHROOM);
+            case SKY_HIGHLANDS -> pick(random, Material.SHORT_GRASS, Material.FERN, Material.AZURE_BLUET, Material.CORNFLOWER, Material.OXEYE_DAISY, Material.ALLIUM);
         };
     }
 
@@ -113,11 +113,11 @@ public final class FaeGrowthPopulator {
             case ANCIENT_FAE_FOREST -> Material.DARK_OAK_WOOD;
             case SKY_HIGHLANDS -> Material.BIRCH_WOOD;
         };
-        int arms = 3 + random.nextInt(4);
+        int arms = 4 + random.nextInt(4);
         for (int arm = 0; arm < arms; arm++) {
             int dx = random.nextInt(-1, 2);
             int dz = dx == 0 ? (random.nextBoolean() ? 1 : -1) : random.nextInt(-1, 2);
-            int length = 2 + random.nextInt(4);
+            int length = 3 + random.nextInt(4);
             for (int step = 0; step < length; step++) {
                 int px = x + dx * step;
                 int pz = z + dz * step;
@@ -125,7 +125,7 @@ public final class FaeGrowthPopulator {
                 if (surfaceY == Integer.MIN_VALUE) continue;
                 int py = surfaceY + 1;
                 setIfAir(region, px, py, pz, root);
-                if (random.nextDouble() < 0.35) {
+                if (random.nextDouble() < 0.52) {
                     setIfAir(region, px, py + 1, pz, Material.MOSS_CARPET);
                 }
             }
@@ -139,15 +139,15 @@ public final class FaeGrowthPopulator {
         FaeRealmBiome biome = AetherChunkGenerator.biomeAt(info.getSeed(), x, z);
         Material hanging = switch (biome) {
             case MIST_GARDENS -> Material.PALE_HANGING_MOSS;
-            case ANCIENT_FAE_FOREST -> ecology.moisture() > 0.55 ? Material.CAVE_VINES : Material.HANGING_ROOTS;
-            case CRYSTAL_WOODS -> ecology.magic() > 0.68 ? Material.CAVE_VINES : Material.HANGING_ROOTS;
+            case ANCIENT_FAE_FOREST -> ecology.moisture() > 0.48 ? Material.CAVE_VINES : Material.HANGING_ROOTS;
+            case CRYSTAL_WOODS -> ecology.magic() > 0.60 ? Material.CAVE_VINES : Material.HANGING_ROOTS;
             case GOLDEN_MEADOWS, SKY_HIGHLANDS -> Material.HANGING_ROOTS;
         };
-        int strands = 1 + (ecology.band().ordinal() >= GrowthBand.LUSH.ordinal() ? random.nextInt(3) : 0);
+        int strands = 2 + (ecology.band().ordinal() >= GrowthBand.LUSH.ordinal() ? random.nextInt(4) : random.nextInt(2));
         for (int strand = 0; strand < strands; strand++) {
             int px = x + random.nextInt(-1, 2);
             int pz = z + random.nextInt(-1, 2);
-            int length = 2 + random.nextInt(3 + Math.max(1, ecology.band().ordinal()));
+            int length = 3 + random.nextInt(4 + Math.max(1, ecology.band().ordinal()));
             for (int drop = 1; drop <= length; drop++) if (!setIfAir(region, px, bottomY - drop, pz, hanging)) break;
         }
     }
