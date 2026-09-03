@@ -137,7 +137,7 @@ public final class FaeResourcePopulator {
             case ANCIENT_FAE_FOREST -> {
                 base = Material.MOSSY_COBBLESTONE;
                 accent = Material.EMERALD_ORE;
-                tip = Material.GLOW_BERRIES;
+                tip = Material.SHROOMLIGHT;
             }
             case SKY_HIGHLANDS -> {
                 base = Material.RAW_IRON_BLOCK;
