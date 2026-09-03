@@ -46,7 +46,8 @@ worldgen:
   # Dense trees, understory and small fantasy features. Valid range: 0.0 - 2.5.
   decoration-density: 1.65
 
-  # Fae islands are unusually resource-rich. Valid range: 0.0 - 2.5.
+  # Fae islands are intentionally overflowing with useful resources.
+  # Valid range: 0.0 - 2.5.
   resource-density: 1.80
 
   # Keep discoveries frequent so exploration always has something nearby.
