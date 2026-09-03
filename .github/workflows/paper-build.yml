@@ -1,0 +1,74 @@
+name: Build The Fae Realm
+
+on:
+  push:
+    branches:
+      - paper-26.2
+  pull_request:
+    branches:
+      - paper-26.2
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fae-realm-build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Paper 26.2 / Java 25
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: gradle
+
+      - name: Make Gradle executable
+        run: chmod +x gradlew
+
+      - name: Build Paper plugin
+        run: ./gradlew --no-daemon clean build
+
+      - name: Locate and verify JAR contents
+        id: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          JAR="$(find build/libs -maxdepth 1 -name 'TheFaeRealm-*.jar' -print -quit)"
+          test -n "$JAR"
+          test -s "$JAR"
+          jar tf "$JAR" | grep -q 'plugin.yml'
+          jar tf "$JAR" | grep -q 'com/wickidcow/aetherlegacy/paper/AetherLegacyPlugin.class'
+          jar tf "$JAR" | grep -q 'com/wickidcow/aetherlegacy/paper/world/FaeRealmPopulator.class'
+          jar tf "$JAR" | grep -q 'com/wickidcow/aetherlegacy/paper/world/FaeDungeonGenerator.class'
+          jar tf "$JAR" | grep -q 'com/wickidcow/aetherlegacy/paper/loot/FaeDungeonLootListener.class'
+          echo "jar=$JAR" >> "$GITHUB_OUTPUT"
+          echo "jar_name=$(basename "$JAR")" >> "$GITHUB_OUTPUT"
+
+      - name: Upload raw JAR artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: TheFaeRealm-raw-jar
+          path: ${{ steps.candidate.outputs.jar }}
+          archive: false
+          if-no-files-found: error
+
+      - name: Publish artifact summary
+        run: |
+          {
+            echo '# 🧚 The Fae Realm — Raw JAR'
+            echo
+            echo '✅ Paper 26.2 / Java 25 build and JAR verification passed.'
+            echo
+            echo "Artifact file: **${{ steps.candidate.outputs.jar_name }}**"
+            echo
+            echo 'The Actions artifact contains the raw **.jar** without ZIP extraction.'
+          } >> "$GITHUB_STEP_SUMMARY"

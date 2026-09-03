@@ -1,0 +1,68 @@
+world:
+  name: fae_realm
+  display-name: Fae Realm
+  # 0 = let Bukkit choose the seed. Set a number for reproducible realms.
+  seed: 0
+
+  # Used only when the realm is initialized for the first time. After that,
+  # Minecraft's saved Fae world spawn is authoritative and this value does not
+  # move existing players or rebuild the arrival platform.
+  spawn-y: 136
+
+  # What happens when a player falls beneath the floating islands:
+  # return-to-overworld | fae-spawn | death
+  void-behavior: return-to-overworld
+
+  # A bright, calm sky complements the Radiant End terrain profile. The world
+  # remains a NORMAL environment so vanilla clients render a real sun and blue sky.
+  pvp: true
+  daylight-cycle: false
+  weather-cycle: false
+  mob-spawning: true
+
+portal:
+  enabled: true
+  auto-activate: true
+  cooldown-seconds: 3
+
+worldgen:
+  # radiant_end | balanced | ethereal | lush | wild
+  preset: radiant_end
+
+  # Apply the Radiant End spacing bias even when an older preset is selected.
+  radiant-end-layout: true
+
+  # Leave these as null to inherit the selected preset.
+  island-density: null
+  vertical-scale: null
+  cave-density: null
+  cloud-level: null
+
+  terrain-profiles: true
+
+  # Multi-noise ecology density. Valid range: 0.0 - 3.0.
+  growth-density: 1.45
+
+  decoration-density: 1.15
+  resource-density: 1.0
+
+  structure-spacing-chunks: 10
+
+  # Great trees, hanging gardens, crystal crowns, sky arches and sun causeways.
+  # Valid range: 18 - 48.
+  landmark-spacing-chunks: 28
+
+  dungeon-chance: 0.12
+
+  clouds: true
+  decorations: true
+  structures: true
+  resources: true
+
+progression:
+  enabled: true
+  essence-drop-chance: 0.22
+
+integrations:
+  betterstructures:
+    allow-generic-structures-in-fae-realm: false
