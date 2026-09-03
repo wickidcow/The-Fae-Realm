@@ -58,6 +58,22 @@ These control additional ground growth, flowers, moss, root knots and hanging ve
 
 The biome-aware tree layer includes Sun Crown trees, Crystal trees, Mist Willows, twisted Ancient trees and windswept birch growth. At the default decoration density, chunks make roughly 12–18 tree placement attempts and roughly 95–140 understory attempts before the separate multi-noise ecology pass is applied.
 
+## Giant fantasy vegetation
+
+Generator v10 also adds a separate large-vegetation pass before ordinary trees and ground cover. These are common enough to shape the skyline but still spaced so islands retain paths, clearings and usable terrain.
+
+- **Golden Meadows** — oversized glowing blossoms and living root arches
+- **Crystal Woods** — End-influenced chorus groves, giant ethereal blossoms and crystal/purpur mushrooms
+- **Mist Gardens** — oversized red/brown mushroom groves with pale hanging moss and pale-root arches
+- **Ancient Fae Forest** — large mushroom groves and twisted living root arches with hanging vines
+- **Sky Highlands** — End-influenced chorus groves and tall ethereal blossoms
+
+Chorus groves are intentionally blended into the Fae palette rather than turning entire regions into End terrain. Each chorus stalk roots into End stone or purpur, with small End-stone/purpur patches bleeding into the surrounding Fae ground. Crystal variants can grow beside amethyst outcrops.
+
+Oversized mushrooms reach roughly 5–11 blocks above their ground level and use broad irregular caps with occasional shroomlight. Giant blossoms rise roughly 7–13 blocks and use living log stems, leaf petals and glowing centers. Root arches span the landscape with mangrove roots, biome wood and curtains of cave vines or hanging roots.
+
+All giant vegetation uses vanilla blocks and Paper `LimitedRegion`; it does not spawn entities, force-load chunks or require a client resource pack.
+
 ## Fae regions
 
 Five deterministic region identities control surface palettes, vegetation, structures, resources and landmarks:
