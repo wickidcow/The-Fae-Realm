@@ -26,7 +26,7 @@ public record FaeGeneratorSettings(
     boolean resources
 ) {
     public static FaeGeneratorSettings defaults() {
-        TerrainPreset preset = TerrainPreset.BALANCED;
+        TerrainPreset preset = TerrainPreset.LUSH;
         return new FaeGeneratorSettings(
             preset,
             preset.islandDensity(),
@@ -34,7 +34,7 @@ public record FaeGeneratorSettings(
             preset.caveDensity(),
             preset.cloudLevel(),
             true,
-            1.0,
+            1.35,
             1.0,
             10,
             0.12,
@@ -46,7 +46,7 @@ public record FaeGeneratorSettings(
     }
 
     public static FaeGeneratorSettings from(FileConfiguration config) {
-        TerrainPreset preset = TerrainPreset.parse(config.getString("worldgen.preset", "balanced"));
+        TerrainPreset preset = TerrainPreset.parse(config.getString("worldgen.preset", "lush"));
 
         double density = clamp(
             numericOverride(config, "worldgen.island-density", preset.islandDensity()),
@@ -63,7 +63,7 @@ public record FaeGeneratorSettings(
         int cloudLevel = Math.max(48, Math.min(120,
             integerOverride(config, "worldgen.cloud-level", preset.cloudLevel())));
         double decorationDensity = clamp(
-            numericOverride(config, "worldgen.decoration-density", 1.0),
+            numericOverride(config, "worldgen.decoration-density", 1.35),
             0.0,
             2.5);
         double resourceDensity = clamp(
@@ -207,12 +207,12 @@ public record FaeGeneratorSettings(
 
         public static TerrainPreset parse(String configured) {
             if (configured == null) {
-                return BALANCED;
+                return LUSH;
             }
             try {
                 return valueOf(configured.trim().toUpperCase(Locale.ROOT));
             } catch (IllegalArgumentException ignored) {
-                return BALANCED;
+                return LUSH;
             }
         }
     }
