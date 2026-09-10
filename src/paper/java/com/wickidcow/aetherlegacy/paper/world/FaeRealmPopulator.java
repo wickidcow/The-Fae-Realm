@@ -29,6 +29,7 @@ public final class FaeRealmPopulator extends BlockPopulator {
     private static final FaeResourcePopulator RESOURCES = new FaeResourcePopulator();
     private static final FaeFeaturePopulator FEATURES = new FaeFeaturePopulator();
     private static final FaeFloraPopulator FLORA = new FaeFloraPopulator();
+    private static final FaeLandscapePopulator LANDSCAPES = new FaeLandscapePopulator();
     private static final FaePlaneFeaturePopulator PLANE_FEATURES = new FaePlaneFeaturePopulator();
     private static final FaeRiftPopulator RIFTS = new FaeRiftPopulator();
     private static final FaeUndersideGenerator UNDERSIDE = new FaeUndersideGenerator();
@@ -60,6 +61,13 @@ public final class FaeRealmPopulator extends BlockPopulator {
 
         if (settings.decorations() && settings.decorationDensity() > 0.0) {
             UNDERSIDE.populate(worldInfo, chunkX, chunkZ, region, settings);
+
+            LANDSCAPES.populate(
+                worldInfo,
+                chunkX,
+                chunkZ,
+                region,
+                settings.decorationDensity());
 
             FLORA.populate(
                 worldInfo,
