@@ -42,7 +42,9 @@ portal:
 # fae-realm-generator.yml. It is intentionally not a user-editable setting.
 worldgen:
   # balanced | ethereal | lush | wild
-  preset: balanced
+  # Lush is the intended default Fae identity: larger/denser island groups with
+  # substantially more vegetation and authored fantasy scenery.
+  preset: lush
 
   # Leave these as null to inherit the selected preset. Replace null with a number
   # only when you want to override that one part of the preset.
@@ -61,8 +63,9 @@ worldgen:
   terrain-profiles: true
 
   # Density multipliers for generated details. 0 disables that density layer;
-  # values up to 2.5 are supported. The layer toggle below can still disable it.
-  decoration-density: 1.0
+  # values up to 2.5 are supported. 1.35 is the intended living-Fae baseline.
+  # The layer toggle below can still disable it.
+  decoration-density: 1.35
   resource-density: 1.0
 
   # One major structure candidate is chosen per square cell of this many chunks.
