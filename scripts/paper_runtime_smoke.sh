@@ -8,6 +8,8 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 EXPECTED_PLUGIN_VERSION="${FAE_REALM_SMOKE_VERSION:-$(sed -n "s/^version = '\([^']*\)'/\1/p" "$REPO_ROOT/build.gradle" | head -n 1 | tr -d '\r')}"
 GENERATOR_VERSION_SOURCE="$REPO_ROOT/src/paper/java/com/wickidcow/aetherlegacy/paper/world/FaeGeneratorVersion.java"
 EXPECTED_GENERATOR_VERSION="${FAE_REALM_SMOKE_GENERATOR_VERSION:-$(sed -n 's/.*CURRENT = \([0-9][0-9]*\);.*/\1/p' "$GENERATOR_VERSION_SOURCE" | head -n 1 | tr -d '\r')}"
+WORLDGEN_CONFIG_SOURCE="$REPO_ROOT/src/paper/resources/config.yml"
+EXPECTED_WORLDGEN_PRESET="${FAE_REALM_SMOKE_PRESET:-$(sed -n 's/^[[:space:]]*preset:[[:space:]]*\([^#[:space:]]*\).*/\1/p' "$WORLDGEN_CONFIG_SOURCE" | head -n 1 | tr -d '\r')}"
 USER_AGENT="${PAPER_DOWNLOAD_USER_AGENT:-The-Fae-Realm-CI/${EXPECTED_PLUGIN_VERSION} (https://github.com/wickidcow/The-Fae-Realm)}"
 STARTUP_TIMEOUT_SECONDS="${PAPER_SMOKE_STARTUP_TIMEOUT:-240}"
 SHUTDOWN_TIMEOUT_SECONDS="${PAPER_SMOKE_SHUTDOWN_TIMEOUT:-60}"
@@ -26,6 +28,11 @@ fi
 
 if [[ -z "$EXPECTED_GENERATOR_VERSION" ]]; then
     echo "Could not resolve The Fae Realm generator version from $GENERATOR_VERSION_SOURCE." >&2
+    exit 1
+fi
+
+if [[ -z "$EXPECTED_WORLDGEN_PRESET" ]]; then
+    echo "Could not resolve the default Fae Realm worldgen preset from $WORLDGEN_CONFIG_SOURCE." >&2
     exit 1
 fi
 
@@ -259,8 +266,8 @@ run_cycle() {
         return 1
     fi
 
-    if ! grep -Fq "Generator: v${EXPECTED_GENERATOR_VERSION} / balanced" "$console_log"; then
-        echo "Paper runtime smoke ${label}: /fae info did not report generator v${EXPECTED_GENERATOR_VERSION}/balanced." >&2
+    if ! grep -Fq "Generator: v${EXPECTED_GENERATOR_VERSION} / ${EXPECTED_WORLDGEN_PRESET}" "$console_log"; then
+        echo "Paper runtime smoke ${label}: /fae info did not report generator v${EXPECTED_GENERATOR_VERSION}/${EXPECTED_WORLDGEN_PRESET}." >&2
         cat "$console_log" >&2 || true
         return 1
     fi
@@ -348,6 +355,7 @@ Starfall: fae_realm_starfall
 Central metadata storage: ${SECOND_REALM_PATH}
 Generator metadata present for all planes: yes
 Generator version: ${EXPECTED_GENERATOR_VERSION}
+Default worldgen preset: ${EXPECTED_WORLDGEN_PRESET}
 Terrain profiles persisted: yes
 Settings provenance persisted: yes
 Async-safe populator registry: pass (4 / 4 worlds)
