@@ -54,6 +54,7 @@ jobs:
           jar tf "$JAR" | grep -q 'com/wickidcow/aetherlegacy/paper/loot/FaeDungeonLootListener.class'
           jar tf "$JAR" | grep -q 'com/wickidcow/aetherlegacy/paper/world/FaeFloraPopulator.class'
           jar tf "$JAR" | grep -q 'com/wickidcow/aetherlegacy/paper/world/FaeLandscapePopulator.class'
+          jar tf "$JAR" | grep -q 'com/wickidcow/aetherlegacy/paper/world/FaeGrovePopulator.class'
           jar tf "$JAR" | grep -q 'com/wickidcow/aetherlegacy/paper/world/FaeUndersideGenerator.class'
           jar tf "$JAR" | grep -q 'com/wickidcow/aetherlegacy/paper/world/FaePlane.class'
           jar tf "$JAR" | grep -q 'com/wickidcow/aetherlegacy/paper/world/FaeDimensionManager.class'
@@ -80,7 +81,7 @@ jobs:
             echo
             echo "Artifact file: **${{ steps.candidate.outputs.jar_name }}**"
             echo
-            echo 'Verified: Iris-scale flora, authored landscape scenes, living undersides, linked planes, signature decorators, and Fae rift travel classes.'
+            echo 'Verified: Iris-scale flora, clustered groves, authored landscape scenes, living undersides, linked planes, signature decorators, and Fae rift travel classes.'
             echo
             echo 'The Actions artifact contains the raw **.jar** without ZIP extraction.'
           } >> "$GITHUB_STEP_SUMMARY"
