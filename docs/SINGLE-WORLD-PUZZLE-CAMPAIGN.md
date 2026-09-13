@@ -8,6 +8,33 @@ The world is an explorable fantasy realm, not a menu of dimensions. Players arri
 
 The linked-plane experiment from `fae-realm-fantasy-worldgen` is not the target architecture. Its useful visual ideas may be adapted into regions or puzzle pockets, but its additional world folders and direct plane commands must not be merged into the active Paper line.
 
+## Realm entry portal
+
+The player-facing entrance should behave like a vanilla Nether portal while keeping the classic Aether-style identity already present in the plugin:
+
+1. Build a complete glowstone frame with a 2x3 interior.
+2. Empty a water bucket inside the frame to activate it.
+3. The plugin fills the frame with water and marks it as an active Fae portal.
+4. Standing in the portal teleports the player to the safe arrival sanctuary in `fae_realm`.
+5. Entering the sanctuary portal returns the player to the remembered source world and safe exit location.
+
+This requires no client mod. `fae_realm` is a separate server world and feels like dimension travel, but it intentionally uses the vanilla `NORMAL` environment for its sun and sky. A brand-new portal block, custom sky renderer or client-defined dimension type is outside the vanilla-client goal and would require client assets or a mod.
+
+Portal activation must validate that the interior is replaceable, respect build protection, tag active frames so arbitrary water cannot teleport players, provide a short configurable warm-up/cooldown, and calculate a collision-safe exit. Portal return data must persist by player UUID across restarts.
+
+## Multiverse compatibility
+
+Multiverse-Core support is a primary compatibility target, not a required dependency.
+
+- Expose `TheFaeRealm` through `JavaPlugin#getDefaultWorldGenerator` early enough for Multiverse to select it.
+- Allow Multiverse to import or create `fae_realm` with `--generator TheFaeRealm`.
+- After plugin startup, bind to the already loaded `fae_realm` when Multiverse owns its lifecycle.
+- Create the world with Bukkit `WorldCreator` only when it is still absent and plugin-managed fallback is enabled.
+- Never create a second fallback world under a different name because Multiverse startup order was delayed.
+- Validate the loaded world's generator metadata and warn clearly when it was imported without `TheFaeRealm`.
+- Keep Multiverse-Portals optional. Its portals may target `fae_realm`, while the built-in glowstone/water portal continues to work without it.
+- Test direct plugin creation, Multiverse create/import, restart loading, disabled Multiverse, and a missing/renamed world.
+
 ## Player journey
 
 1. **Center sanctuary** — `/fae` and the normal portal place players at the safe arrival island. The sanctuary teaches the portal language without exposing the campaign finale.
