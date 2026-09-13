@@ -26,11 +26,16 @@ public final class AetherChunkGenerator extends ChunkGenerator {
 
     private static final int CELL_SIZE = 128;
     private static final int MAX_RADIUS = 76;
+    private static final int MAX_SEARCH_RADIUS = 100;
     private static final int MIN_ISLAND_Y = 92;
     private static final int MAX_ISLAND_Y = 176;
     private static final int WORLD_MIN_ISLAND_Y = 78;
     private static final int WORLD_MAX_ISLAND_Y = 208;
     private static final long PROFILE_SALT = 0xD1310BA698DFB5ACL;
+    private static final long COAST_SALT = 0x8C3C010CB4754C9DL;
+    private static final long HILL_SALT = 0x4E6D8A77D17E5B73L;
+    private static final long CLEARING_SALT = 0xA8F0D7458F6503A9L;
+    private static final long UNDERSIDE_SALT = 0xC5B4A8133E0D3A4FL;
 
     private final FaeGeneratorSettings settings;
 
@@ -126,17 +131,17 @@ public final class AetherChunkGenerator extends ChunkGenerator {
     private List<Island> collectNearbyIslands(long worldSeed, int minX, int maxX, int minZ, int maxZ) {
         List<Island> islands = new ArrayList<>();
 
-        if (intersects(minX, maxX, minZ, maxZ, 0, 0, 58)) {
-            // The origin deliberately stays broad and calm so first arrival is always safe.
-            islands.add(new Island(0, 0, 132, 58, 24, 1.0, IslandProfile.PLATEAU));
+        if (intersects(minX, maxX, minZ, maxZ, 0, 0, 70)) {
+            // The arrival island keeps a calm center, but the outer ring now rolls into hills and cliffs.
+            islands.add(new Island(0, 0, 132, 60, 27, 0.78, 1.0, IslandProfile.ARRIVAL));
         }
 
-        int minCellX = Math.floorDiv(minX - MAX_RADIUS, CELL_SIZE);
-        int maxCellX = Math.floorDiv(maxX + MAX_RADIUS, CELL_SIZE);
-        int minCellZ = Math.floorDiv(minZ - MAX_RADIUS, CELL_SIZE);
-        int maxCellZ = Math.floorDiv(maxZ + MAX_RADIUS, CELL_SIZE);
+        int minCellX = Math.floorDiv(minX - MAX_SEARCH_RADIUS, CELL_SIZE);
+        int maxCellX = Math.floorDiv(maxX + MAX_SEARCH_RADIUS, CELL_SIZE);
+        int minCellZ = Math.floorDiv(minZ - MAX_SEARCH_RADIUS, CELL_SIZE);
+        int maxCellZ = Math.floorDiv(maxZ + MAX_SEARCH_RADIUS, CELL_SIZE);
         double baseIslandChance = clamp(0.20, 0.98, 0.86 * settings.islandDensity());
-        double baseSatelliteChance = clamp(0.08, 0.70, 0.34 * settings.islandDensity());
+        double baseSatelliteChance = clamp(0.10, 0.76, 0.40 * settings.islandDensity());
 
         for (int cellX = minCellX; cellX <= maxCellX; cellX++) {
             for (int cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) {
@@ -174,57 +179,65 @@ public final class AetherChunkGenerator extends ChunkGenerator {
 
                 int radius = clampInt(22, MAX_RADIUS,
                     cellRandom.nextInt(26, 65) + (int) Math.round(macro * 12.0));
-                int thickness = clampInt(12, 34,
-                    cellRandom.nextInt(14, 30) + (int) Math.round(macro01 * 5.0));
-                double warp = 0.78 + cellRandom.nextDouble() * 0.48;
+                int thickness = clampInt(12, 36,
+                    cellRandom.nextInt(15, 31) + (int) Math.round(macro01 * 6.0));
+                double warp = 0.82 + cellRandom.nextDouble() * 0.52;
+                double aspect = 0.88 + cellRandom.nextDouble() * 0.26;
 
                 switch (profile) {
                     case PLATEAU -> {
                         radius = clampInt(28, MAX_RADIUS, radius + 9);
-                        thickness = clampInt(14, 36, thickness + 2);
+                        thickness = clampInt(15, 38, thickness + 3);
                     }
                     case SPIRE -> {
-                        radius = clampInt(18, 58, radius - 7);
-                        thickness = clampInt(17, 40, thickness + 6);
-                        centerY = clampInt(WORLD_MIN_ISLAND_Y, WORLD_MAX_ISLAND_Y, centerY + 8);
+                        radius = clampInt(18, 60, radius - 6);
+                        thickness = clampInt(19, 43, thickness + 8);
+                        centerY = clampInt(WORLD_MIN_ISLAND_Y, WORLD_MAX_ISLAND_Y, centerY + 10);
                     }
-                    case TERRACED -> radius = clampInt(26, MAX_RADIUS, radius + 4);
+                    case TERRACED -> {
+                        radius = clampInt(27, MAX_RADIUS, radius + 5);
+                        thickness = clampInt(15, 38, thickness + 2);
+                    }
                     case HOLLOW -> {
                         radius = clampInt(26, MAX_RADIUS, radius + 6);
-                        thickness = clampInt(18, 40, thickness + 5);
+                        thickness = clampInt(20, 43, thickness + 7);
                     }
-                    case BALANCED -> {
-                        // Base dimensions already represent the balanced profile.
+                    case BALANCED, ARRIVAL -> {
+                        // Base dimensions already represent these profiles.
                     }
                 }
 
-                if (intersects(minX, maxX, minZ, maxZ, centerX, centerZ, radius)) {
-                    islands.add(new Island(centerX, centerZ, centerY, radius, thickness, warp, profile));
+                int boundsRadius = boundsRadius(radius, aspect);
+                if (intersects(minX, maxX, minZ, maxZ, centerX, centerZ, boundsRadius)) {
+                    islands.add(new Island(centerX, centerZ, centerY, radius, thickness, warp, aspect, profile));
                 }
 
-                double localSatelliteChance = clamp(0.05, 0.78,
-                    baseSatelliteChance * (0.72 + macro01 * 0.58));
+                double localSatelliteChance = clamp(0.07, 0.84,
+                    baseSatelliteChance * (0.72 + macro01 * 0.64));
                 int satelliteCount = cellRandom.nextDouble() < localSatelliteChance ? 1 : 0;
-                if (satelliteCount > 0 && macro01 > 0.72 && cellRandom.nextDouble() < 0.28) {
+                if (satelliteCount > 0 && macro01 > 0.64 && cellRandom.nextDouble() < 0.38) {
                     satelliteCount++;
                 }
 
                 for (int satellite = 0; satellite < satelliteCount; satellite++) {
-                    int satelliteX = centerX + cellRandom.nextInt(-72, 73);
-                    int satelliteZ = centerZ + cellRandom.nextInt(-72, 73);
-                    int satelliteY = centerY + cellRandom.nextInt(-18, 19);
-                    int satelliteRadius = cellRandom.nextInt(10, 24);
-                    IslandProfile satelliteProfile = settings.terrainProfiles() && cellRandom.nextInt(5) == 0
+                    int satelliteX = centerX + cellRandom.nextInt(-78, 79);
+                    int satelliteZ = centerZ + cellRandom.nextInt(-78, 79);
+                    int satelliteY = centerY + cellRandom.nextInt(-27, 28);
+                    int satelliteRadius = cellRandom.nextInt(9, 26);
+                    double satelliteAspect = 0.86 + cellRandom.nextDouble() * 0.32;
+                    IslandProfile satelliteProfile = settings.terrainProfiles() && cellRandom.nextInt(4) == 0
                         ? IslandProfile.SPIRE
                         : IslandProfile.BALANCED;
-                    if (intersects(minX, maxX, minZ, maxZ, satelliteX, satelliteZ, satelliteRadius)) {
+                    int satelliteBounds = boundsRadius(satelliteRadius, satelliteAspect);
+                    if (intersects(minX, maxX, minZ, maxZ, satelliteX, satelliteZ, satelliteBounds)) {
                         islands.add(new Island(
                             satelliteX,
                             satelliteZ,
                             clampInt(WORLD_MIN_ISLAND_Y, WORLD_MAX_ISLAND_Y, satelliteY),
                             satelliteRadius,
-                            cellRandom.nextInt(8, 16),
-                            0.7 + cellRandom.nextDouble() * 0.4,
+                            cellRandom.nextInt(9, 18),
+                            0.78 + cellRandom.nextDouble() * 0.48,
+                            satelliteAspect,
                             satelliteProfile));
                     }
                 }
@@ -241,13 +254,13 @@ public final class AetherChunkGenerator extends ChunkGenerator {
         SplittableRandom profileRandom = new SplittableRandom(
             mixSeed(worldSeed ^ PROFILE_SALT, cellX, cellZ));
         int roll = profileRandom.nextInt(100);
-        if (roll < 34) {
+        if (roll < 30) {
             return IslandProfile.BALANCED;
         }
-        if (roll < 53) {
+        if (roll < 45) {
             return IslandProfile.PLATEAU;
         }
-        if (roll < 69) {
+        if (roll < 65) {
             return IslandProfile.SPIRE;
         }
         if (roll < 85) {
@@ -259,6 +272,7 @@ public final class AetherChunkGenerator extends ChunkGenerator {
     private void carveIsland(ChunkData chunkData, long seed, Island island, int chunkMinX, int chunkMinZ) {
         int minHeight = chunkData.getMinHeight();
         int maxHeight = chunkData.getMaxHeight() - 1;
+        double phase = coastPhase(seed, island.x(), island.z());
 
         for (int localX = 0; localX < 16; localX++) {
             int worldX = chunkMinX + localX;
@@ -270,33 +284,60 @@ public final class AetherChunkGenerator extends ChunkGenerator {
 
                 double warpNoise = FaeNoise.fractal(seed ^ 0x4F9939F508L,
                     worldX * 0.018, worldZ * 0.018, 3, 2.1, 0.52);
-                double warpedDx = dx * (1.0 + warpNoise * 0.16 * island.warp());
-                double warpedDz = dz * (1.0 - warpNoise * 0.12 * island.warp());
+                double broadWarp = FaeNoise.fractal(seed ^ COAST_SALT,
+                    worldX * 0.0085, worldZ * 0.0085, 3, 2.0, 0.54);
+                double warpedDx = dx * (1.0 + warpNoise * 0.19 * island.warp()) / island.aspect();
+                double warpedDz = dz * (1.0 - warpNoise * 0.15 * island.warp()) * island.aspect();
                 double distance = Math.sqrt(warpedDx * warpedDx + warpedDz * warpedDz);
+                double angle = Math.atan2(warpedDz, warpedDx);
 
                 double edgeNoise = FaeNoise.fractal(seed ^ 0xA4B1C39D2EL,
-                    worldX * 0.031, worldZ * 0.031, 3, 2.0, 0.5) * 5.0;
-                double effectiveRadius = island.radius() + edgeNoise;
+                    worldX * 0.033, worldZ * 0.033, 3, 2.0, 0.5) * 4.5;
+                double lobeStrength = Math.min(6.5, island.radius() * 0.10);
+                double lobes = (Math.sin(angle * 3.0 + phase) * 0.62
+                    + Math.cos(angle * 5.0 - phase * 0.73) * 0.38) * lobeStrength;
+                double broadCoast = broadWarp * Math.min(8.0, island.radius() * 0.12);
+                double coastScale = island.profile() == IslandProfile.ARRIVAL ? 0.55 : 1.0;
+                double effectiveRadius = island.radius() + (edgeNoise + lobes + broadCoast) * coastScale;
                 if (distance > effectiveRadius) {
                     continue;
                 }
 
-                double edge = 1.0 - (distance / Math.max(1.0, effectiveRadius));
+                double edge = clamp(0.0, 1.0,
+                    1.0 - (distance / Math.max(1.0, effectiveRadius)));
                 double terrainNoise = FaeNoise.fractal(seed ^ 0x1D872B41L,
-                    worldX * 0.024, worldZ * 0.024, 4, 2.05, 0.5);
-                double ridge = Math.abs(FaeNoise.fractal(seed ^ 0x7F4A7C15L,
-                    worldX * 0.011, worldZ * 0.011, 3, 2.0, 0.5));
+                    worldX * 0.023, worldZ * 0.023, 4, 2.05, 0.5);
+                double hillNoise = FaeNoise.fractal(seed ^ HILL_SALT,
+                    worldX * 0.0088, worldZ * 0.0088, 3, 2.0, 0.54);
+                double fineNoise = FaeNoise.fractal(seed ^ 0x72D17C3E5B9A4F11L,
+                    worldX * 0.052, worldZ * 0.052, 2, 2.0, 0.5);
+                double ridgeField = FaeNoise.fractal(seed ^ 0x7F4A7C15L,
+                    worldX * 0.012, worldZ * 0.012, 3, 2.0, 0.5);
+                double ridge = Math.pow(1.0 - Math.abs(ridgeField), 2.0);
+                double valley = FaeNoise.fractal(seed ^ 0x35D9965A7F319E4BL,
+                    worldX * 0.014, worldZ * 0.014, 3, 2.0, 0.52);
 
-                int topY = island.y() + profileRelief(island.profile(), edge, terrainNoise, ridge);
+                int relief = profileRelief(
+                    island.profile(), edge, terrainNoise, hillNoise, fineNoise, ridge, valley);
+                relief = softenForNaturalClearings(seed, island.profile(), worldX, worldZ, edge, relief);
+                int topY = island.y() + relief;
+
                 double depthMultiplier = switch (island.profile()) {
-                    case SPIRE -> 1.20;
-                    case HOLLOW -> 1.14;
-                    case PLATEAU -> 1.05;
-                    case TERRACED -> 0.96;
-                    case BALANCED -> 1.0;
+                    case ARRIVAL -> 1.06;
+                    case SPIRE -> 1.28;
+                    case HOLLOW -> 1.18;
+                    case PLATEAU -> 1.08;
+                    case TERRACED -> 1.02;
+                    case BALANCED -> 1.06;
                 };
-                int depth = Math.max(4, (int) Math.round(
-                    island.thickness() * (0.16 + edge * edge * 0.9) * depthMultiplier));
+                double underside = FaeNoise.fractal(seed ^ UNDERSIDE_SALT,
+                    worldX * 0.016, worldZ * 0.016, 3, 2.0, 0.55);
+                double body = 0.18 + Math.pow(edge, 1.72) * 1.06;
+                int depth = Math.max(5, (int) Math.round(
+                    island.thickness() * body * depthMultiplier
+                        + Math.max(0.0, underside) * 7.0 * settings.verticalScale()
+                        + ridge * edge * 3.0));
+                depth += hangingUndersideDepth(island.profile(), edge, underside, ridge);
                 int bottomY = topY - depth;
 
                 topY = Math.min(topY, maxHeight);
@@ -313,7 +354,7 @@ public final class AetherChunkGenerator extends ChunkGenerator {
                         material = biome.surface();
                     } else if (y >= topY - 3) {
                         material = biome.subsurface();
-                    } else if (y <= bottomY + 1 && edge < 0.5) {
+                    } else if (y <= bottomY + 2 && (edge < 0.52 || underside > 0.48)) {
                         material = Material.CALCITE;
                     } else {
                         material = biome.core();
@@ -324,33 +365,115 @@ public final class AetherChunkGenerator extends ChunkGenerator {
         }
     }
 
-    private int profileRelief(IslandProfile profile, double edge, double terrainNoise, double ridge) {
+    private int profileRelief(IslandProfile profile,
+                              double edge,
+                              double terrainNoise,
+                              double hillNoise,
+                              double fineNoise,
+                              double ridge,
+                              double valley) {
         double vertical = settings.verticalScale();
+        double valleyCut = Math.min(0.0, valley);
         double relief = switch (profile) {
-            case BALANCED -> edge * 7.0 * Math.min(1.35, vertical)
-                + terrainNoise * 7.0 * vertical
-                + ridge * edge * 5.0 * vertical;
-            case PLATEAU -> edge * 4.5 * Math.min(1.15, vertical)
-                + terrainNoise * 3.2 * vertical
-                + ridge * edge * 1.8 * vertical;
-            case SPIRE -> Math.pow(edge, 1.65) * 18.0 * Math.min(1.55, vertical)
-                + terrainNoise * 9.0 * vertical
-                + ridge * edge * 8.0 * vertical;
-            case TERRACED -> {
-                double raw = edge * 9.0 * Math.min(1.35, vertical)
-                    + terrainNoise * 5.0 * vertical
-                    + ridge * edge * 3.2 * vertical;
-                yield Math.rint(raw / 4.0) * 4.0;
+            case ARRIVAL -> {
+                double centerNoise = clamp(0.0, 1.0, (1.0 - edge) / 0.30);
+                yield edge * 6.0
+                    + terrainNoise * 3.0 * vertical * centerNoise
+                    + hillNoise * 4.2 * vertical * centerNoise
+                    + ridge * edge * 2.2 * vertical
+                    + valleyCut * 2.0 * vertical;
             }
-            case HOLLOW -> edge * 6.0 * Math.min(1.30, vertical)
-                + terrainNoise * 6.2 * vertical
-                + ridge * edge * 4.0 * vertical;
+            case BALANCED -> edge * 9.0 * Math.min(1.40, vertical)
+                + terrainNoise * 7.5 * vertical
+                + hillNoise * 8.5 * vertical
+                + ridge * edge * 7.0 * vertical
+                + valleyCut * 5.0 * vertical
+                + fineNoise * 1.4 * vertical;
+            case PLATEAU -> edge * 6.0 * Math.min(1.25, vertical)
+                + terrainNoise * 4.8 * vertical
+                + hillNoise * 7.0 * vertical
+                + ridge * edge * 4.0 * vertical
+                + valleyCut * 4.6 * vertical
+                + fineNoise * 1.2 * vertical;
+            case SPIRE -> Math.pow(edge, 1.48) * 24.0 * Math.min(1.60, vertical)
+                + terrainNoise * 10.0 * vertical
+                + hillNoise * 11.0 * vertical
+                + ridge * edge * 10.0 * vertical
+                + valleyCut * 4.0 * vertical
+                + fineNoise * 2.0 * vertical;
+            case TERRACED -> {
+                double raw = edge * 12.0 * Math.min(1.42, vertical)
+                    + terrainNoise * 6.0 * vertical
+                    + hillNoise * 7.5 * vertical
+                    + ridge * edge * 4.6 * vertical
+                    + valleyCut * 4.2 * vertical;
+                double step = edge > 0.58 ? 3.0 : 4.0;
+                yield Math.rint(raw / step) * step + fineNoise * 1.4 * vertical;
+            }
+            case HOLLOW -> edge * 8.0 * Math.min(1.38, vertical)
+                + terrainNoise * 7.2 * vertical
+                + hillNoise * 8.0 * vertical
+                + ridge * edge * 5.2 * vertical
+                + valleyCut * 5.5 * vertical
+                + fineNoise * 1.3 * vertical;
         };
-        return (int) Math.round(relief);
+        return clampInt(-16, 52, (int) Math.round(relief));
+    }
+
+    private int softenForNaturalClearings(long seed,
+                                          IslandProfile profile,
+                                          int worldX,
+                                          int worldZ,
+                                          double edge,
+                                          int relief) {
+        if (profile == IslandProfile.SPIRE || edge < 0.34) {
+            return relief;
+        }
+
+        double clearing = FaeNoise.fractal(seed ^ CLEARING_SALT,
+            worldX * 0.0064, worldZ * 0.0064, 2, 2.0, 0.56);
+        if (clearing < 0.54) {
+            return relief;
+        }
+
+        double strength = clamp(0.0, 0.68, (clearing - 0.54) * 1.75);
+        double calmLift = switch (profile) {
+            case ARRIVAL -> edge * 6.0;
+            case PLATEAU -> edge * 6.0;
+            case TERRACED -> Math.rint((edge * 10.0) / 3.0) * 3.0;
+            case HOLLOW -> edge * 7.0;
+            case BALANCED -> edge * 8.0;
+            case SPIRE -> relief;
+        };
+        return (int) Math.round(relief * (1.0 - strength) + calmLift * strength);
+    }
+
+    private int hangingUndersideDepth(IslandProfile profile,
+                                      double edge,
+                                      double underside,
+                                      double ridge) {
+        if (edge < 0.10 || underside < 0.46) {
+            return 0;
+        }
+        double profileScale = switch (profile) {
+            case SPIRE -> 1.75;
+            case HOLLOW -> 1.45;
+            case TERRACED -> 1.15;
+            case BALANCED -> 1.05;
+            case PLATEAU -> 0.90;
+            case ARRIVAL -> 0.65;
+        };
+        double taper = Math.sin(Math.PI * clamp(0.0, 1.0, edge));
+        return Math.max(0, (int) Math.round(
+            (underside - 0.46) * 24.0 * profileScale * taper + ridge * 2.5));
     }
 
     private boolean isCavern(long seed, int worldX, int y, int worldZ,
                              int topY, int bottomY, double edge, IslandProfile profile) {
+        if (profile == IslandProfile.ARRIVAL) {
+            return false;
+        }
+
         double minimumEdge = profile == IslandProfile.HOLLOW ? 0.20 : 0.28;
         if (edge < minimumEdge || y > topY - 5 || y < bottomY + 3) {
             return false;
@@ -367,8 +490,9 @@ public final class AetherChunkGenerator extends ChunkGenerator {
             case PLATEAU -> 0.02;
             case TERRACED -> 0.01;
             case BALANCED -> 0.0;
+            case ARRIVAL -> 0.20;
         };
-        threshold = clamp(0.36, 0.72, threshold);
+        threshold = clamp(0.36, 0.76, threshold);
         return cave > threshold && vertical > 0.22 && vertical < 0.78;
     }
 
@@ -472,6 +596,17 @@ public final class AetherChunkGenerator extends ChunkGenerator {
         return true;
     }
 
+    private static int boundsRadius(int radius, double aspect) {
+        double stretch = Math.max(aspect, 1.0 / aspect);
+        return (int) Math.ceil(radius * stretch + 12.0);
+    }
+
+    private static double coastPhase(long seed, int x, int z) {
+        long mixed = mixSeed(seed ^ COAST_SALT, x, z);
+        double normalized = (mixed & 0xFFFFL) / 65535.0;
+        return normalized * Math.PI * 2.0;
+    }
+
     private static boolean intersects(int minX, int maxX, int minZ, int maxZ,
                                       int centerX, int centerZ, int radius) {
         return centerX + radius >= minX
@@ -501,6 +636,7 @@ public final class AetherChunkGenerator extends ChunkGenerator {
     }
 
     private enum IslandProfile {
+        ARRIVAL,
         BALANCED,
         PLATEAU,
         SPIRE,
@@ -515,6 +651,7 @@ public final class AetherChunkGenerator extends ChunkGenerator {
         int radius,
         int thickness,
         double warp,
+        double aspect,
         IslandProfile profile
     ) {
     }

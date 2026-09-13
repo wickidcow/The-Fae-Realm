@@ -94,9 +94,11 @@ assert_realm_files() {
         'current-preset: radiant_end' \
         'terrain-profiles: true' \
         'radiant-end-layout: true' \
-        'growth-density: 1.45' \
-        'structure-spacing-chunks: 10' \
-        'landmark-spacing-chunks: 28' \
+        'growth-density: 2.05' \
+        'decoration-density: 1.65' \
+        'resource-density: 1.8' \
+        'structure-spacing-chunks: 8' \
+        'landmark-spacing-chunks: 22' \
         'first-settings-fingerprint:' \
         'current-settings-fingerprint:'; do
         if ! grep -Fq "$expected" "$REALM_METADATA"; then
@@ -222,8 +224,11 @@ Generator metadata present: yes
 Generator version: ${EXPECTED_GENERATOR_VERSION}
 Preset: radiant_end
 Radiant End layout: yes
-Growth ecology: 1.45
-Landmark spacing: 28 chunks
+Growth ecology: 2.05
+Decoration density: 1.65
+Resource density: 1.80
+Structure spacing: 8 chunks
+Landmark spacing: 22 chunks
 Chunky concurrency guard: installed
 Console /fae info: pass
 Console /fae locate: pass
