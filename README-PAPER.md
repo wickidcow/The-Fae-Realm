@@ -154,6 +154,8 @@ Completing the hidden clues and regional puzzle chain ultimately reveals the **S
 
 The implementation plan and guardrails are documented in [`docs/SINGLE-WORLD-PUZZLE-CAMPAIGN.md`](docs/SINGLE-WORLD-PUZZLE-CAMPAIGN.md).
 
+The public entrance remains the vanilla-client-compatible glowstone-and-water portal. Multiverse-Core is an important optional integration: it may create or import `fae_realm` with the `TheFaeRealm` generator, while the plugin can create the world itself when Multiverse is not installed.
+
 ## Multiverse-Core setup
 
 **Yes — when Multiverse is the plugin importing or creating the realm, set TheFaeRealm as its custom generator.** Otherwise Multiverse can load the folder without knowing which generator must create future chunks.
