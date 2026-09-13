@@ -142,6 +142,18 @@ The Fae Realm owns its structure layer and does not require BetterStructures:
 
 Major structures, large landmarks and ecology are deterministic and use Paper `LimitedRegion` generation without force-loading neighboring chunks.
 
+## Planned single-world puzzle campaign
+
+The long-term adventure design keeps **one generated world**, `fae_realm`. The arrival sanctuary at the center remains the player's starting point; there will not be separate Wildbloom, Gloam or Starfall Bukkit worlds.
+
+Exploration radiates outward from the center. Deterministic portal landmarks found among the islands will carry players to distant puzzle pockets **inside the same world**. Solving a pocket unlocks a checkpoint or sigil and points toward harder, more remote discoveries. The five existing Fae regions provide the campaign's visual and mechanical themes instead of becoming separate dimensions.
+
+Some portals lead to rare cow sanctuaries: enclosed islands populated with Fae cows, a small encounter or environmental puzzle, and a reward chest or limited unique cow drop. Rewards must be safe for a multiplayer server, tracked per player or protected by a configurable cooldown so one visitor cannot permanently empty a secret or turn it into an unlimited farm.
+
+Completing the hidden clues and regional puzzle chain ultimately reveals the **Secret Cow Level**, a final Cow Court area inside `fae_realm`. It is a concealed endgame destination, not another world and not accessible directly from `/fae`.
+
+The implementation plan and guardrails are documented in [`docs/SINGLE-WORLD-PUZZLE-CAMPAIGN.md`](docs/SINGLE-WORLD-PUZZLE-CAMPAIGN.md).
+
 ## Multiverse-Core setup
 
 **Yes — when Multiverse is the plugin importing or creating the realm, set TheFaeRealm as its custom generator.** Otherwise Multiverse can load the folder without knowing which generator must create future chunks.
