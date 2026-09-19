@@ -59,6 +59,29 @@ worldgen:
   structures: true
   resources: true
 
+fauna:
+  cows:
+    # Dense cow herds for the Fae Realm / secret cow-level atmosphere.
+    # These are Fae-only and do not change passive-mob spawning in other worlds.
+    enabled: true
+
+    # Desired number of cows around each active player. 48 is intentionally a lot.
+    target-near-player: 48
+    nearby-radius: 56
+
+    # Hard safety cap for the whole Fae Realm.
+    world-cap: 240
+
+    # Refill herds gradually instead of creating a large entity spike at once.
+    check-interval-ticks: 80
+    max-spawns-per-check: 12
+    min-spawn-radius: 12
+    max-spawn-radius: 48
+
+    # Only cows created by this herd system are cleaned up. Named or leashed cows
+    # are always preserved.
+    cleanup-distance: 112
+
 progression:
   enabled: true
   essence-drop-chance: 0.22

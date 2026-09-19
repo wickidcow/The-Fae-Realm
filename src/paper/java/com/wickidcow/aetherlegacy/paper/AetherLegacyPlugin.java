@@ -6,6 +6,7 @@ import com.wickidcow.aetherlegacy.paper.loot.FaeDungeonLootListener;
 import com.wickidcow.aetherlegacy.paper.portal.AetherPortalListener;
 import com.wickidcow.aetherlegacy.paper.progression.FaeProgressionListener;
 import com.wickidcow.aetherlegacy.paper.world.AetherChunkGenerator;
+import com.wickidcow.aetherlegacy.paper.world.FaeCowSpawner;
 import com.wickidcow.aetherlegacy.paper.world.FaeGeneratorSettings;
 import com.wickidcow.aetherlegacy.paper.world.FaeGeneratorVersion;
 import com.wickidcow.aetherlegacy.paper.world.FaeRegionLocator;
@@ -37,6 +38,7 @@ public final class AetherLegacyPlugin extends JavaPlugin {
     private AetherChunkGenerator generator;
     private AetherPortalListener portalListener;
     private BetterStructuresIntegration betterStructuresIntegration;
+    private FaeCowSpawner cowSpawner;
     private World aetherWorld;
 
     @Override
@@ -72,6 +74,8 @@ public final class AetherLegacyPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new FaeVoidListener(this, portalListener), this);
         getServer().getPluginManager().registerEvents(new FaeDungeonLootListener(this), this);
         getServer().getPluginManager().registerEvents(new FaeProgressionListener(this, faeItems), this);
+        cowSpawner = new FaeCowSpawner(this, aetherWorld);
+        cowSpawner.start();
         betterStructuresIntegration.enable();
 
         PluginCommand command = Objects.requireNonNull(getCommand("fae"), "fae command missing from plugin.yml");
@@ -114,6 +118,9 @@ public final class AetherLegacyPlugin extends JavaPlugin {
                 }
                 reloadConfig();
                 configureRealm(aetherWorld);
+                if (cowSpawner != null) {
+                    cowSpawner.reload();
+                }
                 sender.sendMessage(Component.text(
                     "Fae Realm configuration reloaded. Generator, world-name, and integration-mode changes require a restart.",
                     NamedTextColor.GREEN));
@@ -352,6 +359,13 @@ public final class AetherLegacyPlugin extends JavaPlugin {
             }
         }
         return Bukkit.getWorlds().getFirst().getSpawnLocation().clone().add(0.5, 0.0, 0.5);
+    }
+
+    @Override
+    public void onDisable() {
+        if (cowSpawner != null) {
+            cowSpawner.stop();
+        }
     }
 
     @Override
