@@ -24,39 +24,46 @@ public final class FaeFeaturePopulator {
         SplittableRandom random = new SplittableRandom(
             mixSeed(info.getSeed() ^ FEATURE_SALT, chunkX, chunkZ));
 
-        // Ordinary islands should regularly gain a recognizable focal detail.
-        double featureChance = Math.min(1.0, Math.max(0.0, density / 2.5));
-        if (random.nextDouble() >= featureChance) {
-            return;
-        }
-
+        // In the Fae Realm, ordinary terrain should still feel deliberately busy.
+        // Higher decoration density can yield several small focal details in one chunk,
+        // while stability checks naturally reject crowded or steep placements.
+        int featureAttempts = scaledAttempts(0.9 + density * 0.95, random);
         int baseX = chunkX << 4;
         int baseZ = chunkZ << 4;
-        int x = baseX + 4 + random.nextInt(8);
-        int z = baseZ + 4 + random.nextInt(8);
-        int y = FaeSurfaceLocator.find(info, region, x, z);
-        if (y == Integer.MIN_VALUE || y + 10 >= info.getMaxHeight()) {
-            return;
-        }
 
-        FaeRealmBiome biome = AetherChunkGenerator.biomeAt(info.getSeed(), x, z);
-        if (!stable(info, region, x, y, z, 3)) {
-            return;
-        }
-
-        switch (biome) {
-            case GOLDEN_MEADOWS -> {
-                if (random.nextBoolean()) {
-                    placeFlowerCircle(region, x, y + 1, z);
-                } else {
-                    placeSunPool(region, x, y, z);
-                }
+        for (int attempt = 0; attempt < featureAttempts; attempt++) {
+            int x = baseX + 3 + random.nextInt(10);
+            int z = baseZ + 3 + random.nextInt(10);
+            int y = FaeSurfaceLocator.find(info, region, x, z);
+            if (y == Integer.MIN_VALUE || y + 10 >= info.getMaxHeight()) {
+                continue;
             }
-            case CRYSTAL_WOODS -> placeCrystalSpire(region, x, y + 1, z, random);
-            case MIST_GARDENS -> placeMistMushrooms(region, x, y + 1, z, random);
-            case ANCIENT_FAE_FOREST -> placeFallenAncient(region, x, y + 1, z, random);
-            case SKY_HIGHLANDS -> placeStandingStones(region, x, y + 1, z, random);
+
+            FaeRealmBiome biome = AetherChunkGenerator.biomeAt(info.getSeed(), x, z);
+            if (!stable(info, region, x, y, z, 3)) {
+                continue;
+            }
+
+            switch (biome) {
+                case GOLDEN_MEADOWS -> {
+                    if (random.nextBoolean()) {
+                        placeFlowerCircle(region, x, y + 1, z);
+                    } else {
+                        placeSunPool(region, x, y, z);
+                    }
+                }
+                case CRYSTAL_WOODS -> placeCrystalSpire(region, x, y + 1, z, random);
+                case MIST_GARDENS -> placeMistMushrooms(region, x, y + 1, z, random);
+                case ANCIENT_FAE_FOREST -> placeFallenAncient(region, x, y + 1, z, random);
+                case SKY_HIGHLANDS -> placeStandingStones(region, x, y + 1, z, random);
+            }
         }
+    }
+
+    private int scaledAttempts(double expected, SplittableRandom random) {
+        double safeExpected = Math.max(0.0, expected);
+        int whole = (int) Math.floor(safeExpected);
+        return whole + (random.nextDouble() < safeExpected - whole ? 1 : 0);
     }
 
     private void placeFlowerCircle(LimitedRegion region, int x, int y, int z) {

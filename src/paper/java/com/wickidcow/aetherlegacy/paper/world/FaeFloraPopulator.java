@@ -34,10 +34,10 @@ public final class FaeFloraPopulator {
 
         // Place the larger tree silhouettes before understory so ground plants
         // cannot become the highest block and accidentally suppress a tree site.
-        int treeAttempts = scaledAttempts(5 + random.nextInt(4), density, random);
+        int treeAttempts = scaledAttempts(7 + random.nextInt(5), density, random);
         for (int i = 0; i < treeAttempts; i++) {
-            int x = baseX + 3 + random.nextInt(10);
-            int z = baseZ + 3 + random.nextInt(10);
+            int x = baseX + 2 + random.nextInt(12);
+            int z = baseZ + 2 + random.nextInt(12);
             int surfaceY = FaeSurfaceLocator.find(info, region, x, z);
             if (surfaceY == Integer.MIN_VALUE
                 || surfaceY + 18 >= info.getMaxHeight()) {
@@ -63,7 +63,7 @@ public final class FaeFloraPopulator {
             }
         }
 
-        int groundAttempts = scaledAttempts(42 + random.nextInt(23), density, random);
+        int groundAttempts = scaledAttempts(58 + random.nextInt(27), density, random);
         for (int i = 0; i < groundAttempts; i++) {
             int x = baseX + random.nextInt(16);
             int z = baseZ + random.nextInt(16);
@@ -77,11 +77,11 @@ public final class FaeFloraPopulator {
 
     private double treeChance(FaeRealmBiome biome) {
         return switch (biome) {
-            case GOLDEN_MEADOWS -> 0.55;
-            case CRYSTAL_WOODS -> 0.90;
-            case MIST_GARDENS -> 0.78;
-            case ANCIENT_FAE_FOREST -> 0.96;
-            case SKY_HIGHLANDS -> 0.64;
+            case GOLDEN_MEADOWS -> 0.66;
+            case CRYSTAL_WOODS -> 0.96;
+            case MIST_GARDENS -> 0.88;
+            case ANCIENT_FAE_FOREST -> 0.99;
+            case SKY_HIGHLANDS -> 0.74;
         };
     }
 
@@ -99,23 +99,28 @@ public final class FaeFloraPopulator {
         Material material = switch (biome) {
             case GOLDEN_MEADOWS -> pick(random,
                 Material.SHORT_GRASS, Material.DANDELION, Material.OXEYE_DAISY,
-                Material.ALLIUM, Material.CORNFLOWER, Material.PINK_PETALS);
+                Material.ALLIUM, Material.CORNFLOWER, Material.PINK_PETALS,
+                Material.SUNFLOWER, Material.TORCHFLOWER);
             case CRYSTAL_WOODS -> pick(random,
                 Material.PINK_PETALS, Material.SHORT_GRASS, Material.FLOWERING_AZALEA,
-                Material.AZALEA, Material.ALLIUM, Material.PALE_MOSS_CARPET);
+                Material.AZALEA, Material.ALLIUM, Material.PALE_MOSS_CARPET,
+                Material.MOSS_CARPET, Material.SPORE_BLOSSOM);
             case MIST_GARDENS -> pick(random,
                 Material.PALE_MOSS_CARPET, Material.SHORT_GRASS, Material.FERN,
-                Material.BROWN_MUSHROOM, Material.RED_MUSHROOM, Material.PALE_HANGING_MOSS);
+                Material.BROWN_MUSHROOM, Material.RED_MUSHROOM, Material.PALE_HANGING_MOSS,
+                Material.CLOSED_EYEBLOSSOM, Material.OPEN_EYEBLOSSOM);
             case ANCIENT_FAE_FOREST -> pick(random,
                 Material.FERN, Material.MOSS_CARPET, Material.SHORT_GRASS,
-                Material.BROWN_MUSHROOM, Material.RED_MUSHROOM, Material.AZALEA);
+                Material.BROWN_MUSHROOM, Material.RED_MUSHROOM, Material.AZALEA,
+                Material.FLOWERING_AZALEA, Material.LARGE_FERN);
             case SKY_HIGHLANDS -> pick(random,
                 Material.SHORT_GRASS, Material.AZURE_BLUET, Material.CORNFLOWER,
-                Material.OXEYE_DAISY, Material.FERN, Material.PINK_PETALS);
+                Material.OXEYE_DAISY, Material.FERN, Material.PINK_PETALS,
+                Material.ALLIUM, Material.DANDELION);
         };
 
-        if (material == Material.PALE_HANGING_MOSS) {
-            material = Material.PALE_MOSS_CARPET;
+        if (material == Material.PALE_HANGING_MOSS || material == Material.SPORE_BLOSSOM) {
+            material = biome == FaeRealmBiome.CRYSTAL_WOODS ? Material.PINK_PETALS : Material.PALE_MOSS_CARPET;
         }
         setIfAir(region, x, y, z, material);
     }

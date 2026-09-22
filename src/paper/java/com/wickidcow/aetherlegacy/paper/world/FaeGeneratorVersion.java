@@ -9,7 +9,7 @@ package com.wickidcow.aetherlegacy.paper.world;
  */
 public final class FaeGeneratorVersion {
 
-    public static final int CURRENT = 9;
+    public static final int CURRENT = 10;
 
     private FaeGeneratorVersion() {
     }

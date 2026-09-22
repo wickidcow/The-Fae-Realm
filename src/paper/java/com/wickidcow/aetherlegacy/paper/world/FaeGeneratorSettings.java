@@ -38,12 +38,12 @@ public record FaeGeneratorSettings(
             preset.cloudLevel(),
             true,
             true,
-            1.45,
-            1.15,
-            1.0,
-            10,
-            28,
-            0.12,
+            2.05,
+            1.65,
+            1.80,
+            8,
+            22,
+            0.16,
             true,
             true,
             true,
@@ -78,23 +78,23 @@ public record FaeGeneratorSettings(
         }
 
         double growthDensity = clamp(
-            numericOverride(config, "worldgen.growth-density", 1.45),
+            numericOverride(config, "worldgen.growth-density", 2.05),
             0.0,
             3.0);
         double decorationDensity = clamp(
-            numericOverride(config, "worldgen.decoration-density", 1.15),
+            numericOverride(config, "worldgen.decoration-density", 1.65),
             0.0,
             2.5);
         double resourceDensity = clamp(
-            numericOverride(config, "worldgen.resource-density", 1.0),
+            numericOverride(config, "worldgen.resource-density", 1.80),
             0.0,
             2.5);
         int structureSpacing = Math.max(6, Math.min(24,
-            integerOverride(config, "worldgen.structure-spacing-chunks", 10)));
+            integerOverride(config, "worldgen.structure-spacing-chunks", 8)));
         int landmarkSpacing = Math.max(18, Math.min(48,
-            integerOverride(config, "worldgen.landmark-spacing-chunks", 28)));
+            integerOverride(config, "worldgen.landmark-spacing-chunks", 22)));
         double dungeonChance = clamp(
-            numericOverride(config, "worldgen.dungeon-chance", 0.12),
+            numericOverride(config, "worldgen.dungeon-chance", 0.16),
             0.0,
             0.50);
 

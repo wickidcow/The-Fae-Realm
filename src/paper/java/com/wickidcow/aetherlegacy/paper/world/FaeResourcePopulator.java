@@ -27,12 +27,12 @@ public final class FaeResourcePopulator {
         int baseX = chunkX << 4;
         int baseZ = chunkZ << 4;
 
-        int attempts = scaledAttempts(7 + random.nextInt(5), density, random);
+        int attempts = scaledAttempts(11 + random.nextInt(7), density, random);
         for (int attempt = 0; attempt < attempts; attempt++) {
             int x = baseX + 2 + random.nextInt(12);
             int z = baseZ + 2 + random.nextInt(12);
-            int surfaceY = region.getHighestBlockYAt(x, z);
-            if (surfaceY <= info.getMinHeight() + 6) {
+            int surfaceY = FaeSurfaceLocator.find(info, region, x, z);
+            if (surfaceY == Integer.MIN_VALUE || surfaceY <= info.getMinHeight() + 6) {
                 continue;
             }
 
@@ -47,6 +47,26 @@ public final class FaeResourcePopulator {
             }
 
             placeVein(region, x, y, z, resource.material(), resource.maxVein(), random);
+            if (density >= 1.5 && random.nextDouble() < Math.min(0.72, 0.22 * density)) {
+                placeVein(region,
+                    x + random.nextInt(-2, 3),
+                    y + random.nextInt(-2, 3),
+                    z + random.nextInt(-2, 3),
+                    resource.material(),
+                    Math.max(2, resource.maxVein() - 1),
+                    random);
+            }
+        }
+
+        int bloomAttempts = scaledAttempts(2 + random.nextInt(3), Math.max(0.0, density - 0.45), random);
+        for (int attempt = 0; attempt < bloomAttempts; attempt++) {
+            int x = baseX + 2 + random.nextInt(12);
+            int z = baseZ + 2 + random.nextInt(12);
+            int surfaceY = FaeSurfaceLocator.find(info, region, x, z);
+            if (surfaceY == Integer.MIN_VALUE || surfaceY + 4 >= info.getMaxHeight()) {
+                continue;
+            }
+            placeResourceBloom(info, region, random, x, surfaceY + 1, z);
         }
     }
 
@@ -60,32 +80,79 @@ public final class FaeResourcePopulator {
     private Resource chooseResource(FaeRealmBiome biome, SplittableRandom random) {
         int roll = random.nextInt(100);
         return switch (biome) {
-            case GOLDEN_MEADOWS -> roll < 52
-                ? new Resource(Material.GOLD_ORE, 4, 8, 11)
-                : roll < 88
-                    ? new Resource(Material.COPPER_ORE, 6, 5, 12)
-                    : new Resource(Material.EMERALD_ORE, 2, 10, 9);
-            case CRYSTAL_WOODS -> roll < 52
-                ? new Resource(Material.AMETHYST_BLOCK, 5, 4, 10)
-                : roll < 88
-                    ? new Resource(Material.LAPIS_ORE, 4, 7, 10)
-                    : new Resource(Material.DIAMOND_ORE, 2, 11, 8);
-            case MIST_GARDENS -> roll < 52
-                ? new Resource(Material.LAPIS_ORE, 5, 5, 12)
-                : roll < 88
-                    ? new Resource(Material.IRON_ORE, 5, 6, 11)
-                    : new Resource(Material.GLOWSTONE, 3, 9, 8);
-            case ANCIENT_FAE_FOREST -> roll < 52
-                ? new Resource(Material.EMERALD_ORE, 3, 6, 10)
-                : roll < 88
-                    ? new Resource(Material.COAL_ORE, 6, 4, 11)
-                    : new Resource(Material.DIAMOND_ORE, 2, 12, 7);
-            case SKY_HIGHLANDS -> roll < 52
-                ? new Resource(Material.IRON_ORE, 6, 4, 12)
-                : roll < 88
-                    ? new Resource(Material.COPPER_ORE, 6, 5, 11)
-                    : new Resource(Material.GOLD_ORE, 3, 10, 8);
+            case GOLDEN_MEADOWS -> roll < 46
+                ? new Resource(Material.GOLD_ORE, 7, 3, 9)
+                : roll < 80
+                    ? new Resource(Material.COPPER_ORE, 9, 4, 11)
+                    : new Resource(Material.EMERALD_ORE, 4, 7, 9);
+            case CRYSTAL_WOODS -> roll < 44
+                ? new Resource(Material.AMETHYST_BLOCK, 8, 3, 9)
+                : roll < 78
+                    ? new Resource(Material.LAPIS_ORE, 7, 5, 10)
+                    : new Resource(Material.DIAMOND_ORE, 4, 8, 8);
+            case MIST_GARDENS -> roll < 44
+                ? new Resource(Material.LAPIS_ORE, 8, 4, 11)
+                : roll < 80
+                    ? new Resource(Material.IRON_ORE, 8, 4, 10)
+                    : new Resource(Material.GLOWSTONE, 5, 6, 8);
+            case ANCIENT_FAE_FOREST -> roll < 44
+                ? new Resource(Material.EMERALD_ORE, 5, 4, 9)
+                : roll < 78
+                    ? new Resource(Material.COAL_ORE, 9, 3, 10)
+                    : new Resource(Material.DIAMOND_ORE, 4, 9, 7);
+            case SKY_HIGHLANDS -> roll < 44
+                ? new Resource(Material.IRON_ORE, 9, 3, 11)
+                : roll < 80
+                    ? new Resource(Material.COPPER_ORE, 9, 4, 10)
+                    : new Resource(Material.GOLD_ORE, 5, 7, 8);
         };
+    }
+
+    private void placeResourceBloom(WorldInfo info,
+                                    LimitedRegion region,
+                                    SplittableRandom random,
+                                    int x,
+                                    int y,
+                                    int z) {
+        FaeRealmBiome biome = AetherChunkGenerator.biomeAt(info.getSeed(), x, z);
+        Material base;
+        Material accent;
+        Material tip;
+        switch (biome) {
+            case GOLDEN_MEADOWS -> {
+                base = Material.RAW_GOLD_BLOCK;
+                accent = Material.GOLD_ORE;
+                tip = Material.GLOWSTONE;
+            }
+            case CRYSTAL_WOODS -> {
+                base = Material.AMETHYST_BLOCK;
+                accent = Material.BUDDING_AMETHYST;
+                tip = Material.AMETHYST_CLUSTER;
+            }
+            case MIST_GARDENS -> {
+                base = Material.LAPIS_BLOCK;
+                accent = Material.LAPIS_ORE;
+                tip = Material.SEA_LANTERN;
+            }
+            case ANCIENT_FAE_FOREST -> {
+                base = Material.MOSSY_COBBLESTONE;
+                accent = Material.EMERALD_ORE;
+                tip = Material.SHROOMLIGHT;
+            }
+            case SKY_HIGHLANDS -> {
+                base = Material.RAW_IRON_BLOCK;
+                accent = Material.IRON_ORE;
+                tip = Material.GLOWSTONE;
+            }
+            default -> throw new IllegalStateException("Unexpected biome: " + biome);
+        }
+
+        setIfAir(region, x, y, z, base);
+        if (random.nextDouble() < 0.78) setIfAir(region, x + 1, y, z, accent);
+        if (random.nextDouble() < 0.78) setIfAir(region, x - 1, y, z, accent);
+        if (random.nextDouble() < 0.58) setIfAir(region, x, y, z + 1, base);
+        if (random.nextDouble() < 0.58) setIfAir(region, x, y, z - 1, base);
+        setIfAir(region, x, y + 1, z, tip);
     }
 
     private void placeVein(LimitedRegion region,
@@ -95,7 +162,7 @@ public final class FaeResourcePopulator {
                            Material material,
                            int maxVein,
                            SplittableRandom random) {
-        int blocks = 1 + random.nextInt(Math.max(1, maxVein));
+        int blocks = 2 + random.nextInt(Math.max(1, maxVein));
         int px = x;
         int py = y;
         int pz = z;
@@ -114,6 +181,14 @@ public final class FaeResourcePopulator {
                 default -> py--;
             }
         }
+    }
+
+    private boolean setIfAir(LimitedRegion region, int x, int y, int z, Material material) {
+        if (!region.isInRegion(x, y, z) || !region.getType(x, y, z).isAir()) {
+            return false;
+        }
+        region.setType(x, y, z, material);
+        return true;
     }
 
     private boolean replaceable(Material material) {
