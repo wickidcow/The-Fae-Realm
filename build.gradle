@@ -3,9 +3,9 @@ plugins {
 }
 
 group = 'com.wickidcow.faerealm'
-version = '0.3.2'
+version = '0.4.0'
 
-def paperVersion = '26.2.build.112-stable'
+def paperVersion = findProperty('paper_version') ?: '26.3.build.+'
 
 repositories {
     mavenCentral()
@@ -48,7 +48,7 @@ jar {
         attributes(
             'Implementation-Title': 'The Fae Realm',
             'Implementation-Version': project.version,
-            'Built-For': 'Paper 26.2 / Java 25'
+            'Built-For': 'Paper 26.3 primary / 1.21.11+ compatibility / Java 25'
         )
     }
 }

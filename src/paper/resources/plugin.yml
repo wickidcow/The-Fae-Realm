@@ -5,7 +5,8 @@ description: Server-side Paper fantasy world generator, structures, dungeons, re
 authors: [wickidcow]
 contributors: [The Aether Team]
 website: https://github.com/wickidcow/The-Fae-Realm
-api-version: '26.2'
+# Minimum supported Paper API. CI also compiles and runtime-tests the 26.3 primary target.
+api-version: '1.21.11'
 load: POSTWORLD
 # The generator must be enabled before Multiverse-Core so an existing/imported
 # fae_realm keeps TheFaeRealm as its generator across restarts.

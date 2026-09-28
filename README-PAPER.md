@@ -1,6 +1,6 @@
 # The Fae Realm
 
-**The Fae Realm** is a server-side fantasy world generator for **Paper 26.2 / Java 25**. It creates a separate bright floating-island realm from a seed as players explore. It is not a pre-generated map and does not require Forge, Fabric, NeoForge, Iris, or a client resource pack.
+**The Fae Realm** is a server-side fantasy world generator with **Paper 26.3 as the primary target**, while preserving **Paper 1.21.11+ compatibility**, on **Java 25**. It creates a separate bright floating-island realm from a seed as players explore. It is not a pre-generated map and does not require Forge, Fabric, NeoForge, Iris, or a client resource pack.
 
 The Paper implementation owns its terrain, ecology, regional identities, resources, structures, dungeons, progression hooks, portals, configuration and runtime validation. Iris/Terra-style ideas such as layered noise fields, domain warping and deterministic object grids are implemented independently in this plugin; Iris is not a dependency.
 
@@ -183,7 +183,9 @@ Each realm stores `fae-realm-generator.yml` with the generator revision, seed, p
 
 ## Build target
 
-- Minecraft/Paper: **26.2**
+- Primary Minecraft/Paper target: **26.3**
+- Compatibility floor: **Paper 1.21.11+**
+- CI policy: compile against **1.21.11** and **26.3**, then boot-test the same JAR on both
 - Java: **25**
 - Generator: **v9 Living Islands**
 - Iris: **not required**

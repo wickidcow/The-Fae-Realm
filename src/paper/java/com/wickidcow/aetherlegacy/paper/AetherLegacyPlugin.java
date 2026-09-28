@@ -230,7 +230,7 @@ public final class AetherLegacyPlugin extends JavaPlugin {
             NamedTextColor.GRAY));
         sender.sendMessage(Component.text(
             "BetterStructures: " + betterStructuresIntegration.status(), NamedTextColor.GRAY));
-        sender.sendMessage(Component.text("Paper target: 26.2 / Java 25", NamedTextColor.GRAY));
+        sender.sendMessage(Component.text("Paper target: 26.3 primary / 1.21.11+ compatible / Java 25", NamedTextColor.GRAY));
     }
 
     private void sendHelp(CommandSender sender) {
