@@ -1,9 +1,9 @@
-name: Paper 26.2 Runtime Smoke
+name: Paper Compatibility Runtime Smoke
 
 on:
   push:
     branches:
-      - paper-26.2
+      - paper-26.3
     paths:
       - 'src/paper/**'
       - 'scripts/paper_runtime_smoke.sh'
@@ -14,7 +14,7 @@ on:
       - '.github/workflows/runtime-smoke.yml'
   pull_request:
     branches:
-      - paper-26.2
+      - paper-26.3
     paths:
       - 'src/paper/**'
       - 'scripts/paper_runtime_smoke.sh'
@@ -33,14 +33,24 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PAPER_MINECRAFT_VERSION: "26.2"
-  PAPER_DOWNLOAD_USER_AGENT: "The-Fae-Realm-CI/0.1.0-SNAPSHOT (https://github.com/wickidcow/The-Fae-Realm)"
+  PAPER_DOWNLOAD_USER_AGENT: "The-Fae-Realm-CI/0.4.0 (https://github.com/wickidcow/The-Fae-Realm)"
 
 jobs:
   paper-runtime-smoke:
-    name: Boot The Fae Realm twice on stable Paper 26.2
+    name: ${{ matrix.label }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - minecraft: '1.21.11'
+            channel: 'STABLE'
+            label: 'Boot twice on Paper 1.21.11 compatibility floor'
+          - minecraft: '26.3'
+            channel: 'AUTO'
+            label: 'Boot twice on primary Paper 26.3'
+
     steps:
       - name: Check out source
         uses: actions/checkout@v6
@@ -52,7 +62,7 @@ jobs:
           java-version: '25'
           cache: gradle
 
-      - name: Build The Fae Realm JAR
+      - name: Build The Fae Realm JAR against Paper 26.3
         run: |
           chmod +x gradlew scripts/paper_runtime_smoke.sh
           ./gradlew --no-daemon clean build
@@ -67,7 +77,10 @@ jobs:
           test -s "$JAR"
           echo "jar=$JAR" >> "$GITHUB_OUTPUT"
 
-      - name: Boot-test stable Paper 26.2 twice
+      - name: Runtime compatibility smoke
+        env:
+          PAPER_MINECRAFT_VERSION: ${{ matrix.minecraft }}
+          PAPER_CHANNEL: ${{ matrix.channel }}
         run: bash scripts/paper_runtime_smoke.sh "${{ steps.candidate.outputs.jar }}"
 
       - name: Publish runtime smoke summary
@@ -75,7 +88,7 @@ jobs:
         run: |
           if [[ -f build/paper-runtime-smoke/smoke-result.txt ]]; then
             {
-              echo '## The Fae Realm — Paper 26.2 runtime smoke'
+              echo "## The Fae Realm — Paper ${{ matrix.minecraft }} runtime smoke"
               echo
               echo '```text'
               cat build/paper-runtime-smoke/smoke-result.txt

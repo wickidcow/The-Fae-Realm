@@ -3,7 +3,8 @@ set -euo pipefail
 
 PLUGIN_JAR="${1:?Usage: paper_runtime_smoke.sh <fae-realm-jar> [work-directory]}"
 WORK_DIR="${2:-build/paper-runtime-smoke}"
-MC_VERSION="${PAPER_MINECRAFT_VERSION:-26.2}"
+MC_VERSION="${PAPER_MINECRAFT_VERSION:-26.3}"
+PAPER_CHANNEL="${PAPER_CHANNEL:-AUTO}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 EXPECTED_PLUGIN_VERSION="${FAE_REALM_SMOKE_VERSION:-$(sed -n "s/^version = '\([^']*\)'/\1/p" "$REPO_ROOT/build.gradle" | head -n 1 | tr -d '\r')}"
 GENERATOR_VERSION_SOURCE="$REPO_ROOT/src/paper/java/com/wickidcow/aetherlegacy/paper/world/FaeGeneratorVersion.java"
@@ -48,11 +49,17 @@ PROPERTIES
 
 BUILDS_URL="https://fill.papermc.io/v3/projects/paper/versions/${MC_VERSION}/builds"
 BUILDS_RESPONSE="$(curl --fail-with-body -sS -H "User-Agent: ${USER_AGENT}" "$BUILDS_URL")"
-PAPER_URL="$(jq -r 'first(.[] | select(.channel == "STABLE") | .downloads."server:default".url) // empty' <<<"$BUILDS_RESPONSE")"
-PAPER_BUILD="$(jq -r 'first(.[] | select(.channel == "STABLE") | .id) // empty' <<<"$BUILDS_RESPONSE")"
-[[ -n "$PAPER_URL" && -n "$PAPER_BUILD" ]] || { echo "No stable Paper build is available for Minecraft ${MC_VERSION}." >&2; exit 1; }
+if [[ "$PAPER_CHANNEL" == "AUTO" ]]; then
+    PAPER_CHANNEL_RESOLVED="$(jq -r 'if any(.[]; .channel == "STABLE") then "STABLE" elif any(.[]; .channel == "BETA") then "BETA" elif any(.[]; .channel == "ALPHA") then "ALPHA" else empty end' <<<"$BUILDS_RESPONSE")"
+else
+    PAPER_CHANNEL_RESOLVED="$PAPER_CHANNEL"
+fi
 
-printf 'Minecraft: %s\nPaper stable build: %s\nDownload: %s\n' "$MC_VERSION" "$PAPER_BUILD" "$PAPER_URL" > "$WORK_DIR/paper-build.txt"
+PAPER_URL="$(jq -r --arg channel "$PAPER_CHANNEL_RESOLVED" 'first(.[] | select(.channel == $channel) | .downloads."server:default".url) // empty' <<<"$BUILDS_RESPONSE")"
+PAPER_BUILD="$(jq -r --arg channel "$PAPER_CHANNEL_RESOLVED" 'first(.[] | select(.channel == $channel) | .id) // empty' <<<"$BUILDS_RESPONSE")"
+[[ -n "$PAPER_URL" && -n "$PAPER_BUILD" ]] || { echo "No Paper build is available for Minecraft ${MC_VERSION} on channel ${PAPER_CHANNEL_RESOLVED:-<none>}." >&2; exit 1; }
+
+printf 'Minecraft: %s\nPaper channel: %s\nPaper build: %s\nDownload: %s\n' "$MC_VERSION" "$PAPER_CHANNEL_RESOLVED" "$PAPER_BUILD" "$PAPER_URL" > "$WORK_DIR/paper-build.txt"
 curl --fail-with-body -L -sS -H "User-Agent: ${USER_AGENT}" -o "$WORK_DIR/paper.jar" "$PAPER_URL"
 [[ -s "$WORK_DIR/paper.jar" ]]
 
@@ -214,7 +221,8 @@ cat > "$WORK_DIR/smoke-result.txt" <<EOF
 The Fae Realm Paper runtime smoke: PASS
 The Fae Realm: ${EXPECTED_PLUGIN_VERSION}
 Minecraft: ${MC_VERSION}
-Paper stable build: ${PAPER_BUILD}
+Paper channel: ${PAPER_CHANNEL_RESOLVED}
+Paper build: ${PAPER_BUILD}
 Cycles: 2
 Fae Realm dimension created: yes
 Fae Realm storage: ${SECOND_REALM_PATH}
