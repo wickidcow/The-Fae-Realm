@@ -113,8 +113,8 @@ assert_realm_files() {
         fi
     done
 
-    [[ -d "$realm_dir/region" ]] || {
-        echo "Paper runtime smoke ${label}: Fae Realm region storage was not created at $realm_dir." >&2
+    [[ -d "$realm_dir" ]] || {
+        echo "Paper runtime smoke ${label}: Fae Realm world folder was not created at $realm_dir." >&2
         return 1
     }
 }
@@ -196,6 +196,17 @@ run_cycle() {
     fi
     grep -Fq 'Stopping server' "$console_log" || {
         echo "Paper runtime smoke ${label}: a normal server shutdown was not observed." >&2; return 1;
+    }
+
+    # Older supported Paper builds can defer creation of the Anvil region
+    # directory until the world's first clean save. Verify durable region
+    # storage after shutdown instead of treating that lifecycle difference as
+    # an API-compatibility failure.
+    local realm_dir
+    realm_dir="$(dirname "$REALM_METADATA")"
+    [[ -d "$realm_dir/region" ]] || {
+        echo "Paper runtime smoke ${label}: Fae Realm region storage was not persisted after shutdown at $realm_dir." >&2
+        return 1
     }
 }
 
