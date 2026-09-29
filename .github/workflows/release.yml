@@ -7,6 +7,7 @@ on:
       - paper-26.3
     paths:
       - release/request-version.txt
+      - .github/workflows/release.yml
 
 permissions:
   contents: write
@@ -60,7 +61,7 @@ jobs:
           jar tf "$JAR" | grep -Fxq 'com/wickidcow/aetherlegacy/paper/AetherLegacyPlugin.class'
           jar tf "$JAR" | grep -Fxq 'com/wickidcow/aetherlegacy/paper/world/FaeRealmPopulator.class'
           jar tf "$JAR" | grep -Fxq 'com/wickidcow/aetherlegacy/paper/world/FaeDungeonGenerator.class'
-          jar tf "$JAR" | grep -Fxq 'com/wickidcow/aetherlegacy/paper/listener/FaeLootListener.class'
+          jar tf "$JAR" | grep -Fxq 'com/wickidcow/aetherlegacy/paper/loot/FaeDungeonLootListener.class'
           unzip -p "$JAR" plugin.yml | grep -Fq "api-version: '1.21.11'"
           echo "jar=$JAR" >> "$GITHUB_OUTPUT"
 
