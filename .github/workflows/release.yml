@@ -1,0 +1,160 @@
+name: Release The Fae Realm
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - paper-26.3
+    paths:
+      - release/request-version.txt
+
+permissions:
+  contents: write
+
+env:
+  PAPER_DOWNLOAD_USER_AGENT: The-Fae-Realm-Release-CI/0.4.0 (https://github.com/wickidcow/The-Fae-Realm)
+
+jobs:
+  verify-build:
+    name: Verify release build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: gradle
+
+      - name: Make Gradle executable
+        run: chmod +x gradlew
+
+      - name: Read requested version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(tr -d '[:space:]' < release/request-version.txt)"
+          test -n "$VERSION"
+          grep -Fq "version = '$VERSION'" build.gradle
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Compile against Paper 1.21.11 compatibility floor
+        run: ./gradlew --no-daemon clean compileJava -Ppaper_version=1.21.11-R0.1-SNAPSHOT
+
+      - name: Build against primary Paper 26.3 API
+        run: ./gradlew --no-daemon clean build
+
+      - name: Verify release JAR
+        id: jar
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          JAR="build/libs/TheFaeRealm-${VERSION}.jar"
+          test -s "$JAR"
+          jar tf "$JAR" | grep -Fxq 'plugin.yml'
+          jar tf "$JAR" | grep -Fxq 'com/wickidcow/aetherlegacy/paper/AetherLegacyPlugin.class'
+          jar tf "$JAR" | grep -Fxq 'com/wickidcow/aetherlegacy/paper/world/FaeRealmPopulator.class'
+          jar tf "$JAR" | grep -Fxq 'com/wickidcow/aetherlegacy/paper/world/FaeDungeonGenerator.class'
+          jar tf "$JAR" | grep -Fxq 'com/wickidcow/aetherlegacy/paper/listener/FaeLootListener.class'
+          unzip -p "$JAR" plugin.yml | grep -Fq "api-version: '1.21.11'"
+          echo "jar=$JAR" >> "$GITHUB_OUTPUT"
+
+      - name: Upload verified raw JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: TheFaeRealm-release-jar
+          path: ${{ steps.jar.outputs.jar }}
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+  runtime-smoke:
+    name: Runtime smoke — ${{ matrix.label }}
+    needs: verify-build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - minecraft: '1.21.11'
+            channel: STABLE
+            label: Paper 1.21.11 compatibility floor
+          - minecraft: '26.3'
+            channel: AUTO
+            label: primary Paper 26.3
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Download verified release JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: TheFaeRealm-release-jar
+          path: release-artifact
+
+      - name: Locate candidate JAR
+        id: jar
+        shell: bash
+        run: |
+          set -euo pipefail
+          JAR="$(find release-artifact -maxdepth 1 -name 'TheFaeRealm-*.jar' -print -quit)"
+          test -n "$JAR"
+          test -s "$JAR"
+          echo "jar=$JAR" >> "$GITHUB_OUTPUT"
+
+      - name: Runtime compatibility smoke
+        env:
+          PAPER_MINECRAFT_VERSION: ${{ matrix.minecraft }}
+          PAPER_CHANNEL: ${{ matrix.channel }}
+        run: bash scripts/paper_runtime_smoke.sh "${{ steps.jar.outputs.jar }}"
+
+  publish-release:
+    name: Publish GitHub release
+    needs:
+      - verify-build
+      - runtime-smoke
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Download verified release JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: TheFaeRealm-release-jar
+          path: release-artifact
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(tr -d '[:space:]' < release/request-version.txt)"
+          TAG="v${VERSION}"
+          JAR="release-artifact/TheFaeRealm-${VERSION}.jar"
+          NOTES="release/${VERSION}.md"
+
+          test -s "$JAR"
+          test -s "$NOTES"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$JAR" --clobber
+          else
+            gh release create "$TAG" "$JAR" \
+              --target "$GITHUB_SHA" \
+              --title "The Fae Realm ${VERSION}" \
+              --notes-file "$NOTES" \
+              --latest
+          fi
